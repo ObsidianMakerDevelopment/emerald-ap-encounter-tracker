@@ -2,7 +2,7 @@ import * as AP from "archipelago.js";
 import * as ZIP from "jszip";
 import { decodeTokenData } from "./tokensDecoder.mjs";
 import { emerald_data } from "./data.mjs"
-import { tabMapping } from "./tab_mapping.mjs"
+import { tabMapping,imgMapping } from "./tab_mapping.mjs"
 // Minimal tracker bootstrap with Archipelago login/config UI
 const configStorageKey = "ap_tracker_config";
 
@@ -379,27 +379,15 @@ function generateMapTabs() {
     // sync status badge
     const statusBadge = document.createElement('div');
     statusBadge.id = 'syncStatusBadge';
-    statusBadge.style.padding = '6px 10px';
-    statusBadge.style.borderRadius = '6px';
-    statusBadge.style.display = 'inline-block';
-    statusBadge.style.margin = '8px';
-    statusBadge.style.background = '#3a3f44';
-    statusBadge.style.color = '#fff';
-    statusBadge.style.fontWeight = '600';
+    statusBadge.className = 'status-badge';
     statusBadge.textContent = 'Sync: Unknown';
     container.appendChild(statusBadge);
 
     // clear stored caught button
     const clearBtn = document.createElement('button');
     clearBtn.id = 'clearCaughtBtn';
+    clearBtn.className = 'clear-btn';
     clearBtn.textContent = 'Clear Local Caught';
-    clearBtn.style.margin = '8px';
-    clearBtn.style.padding = '6px 10px';
-    clearBtn.style.cursor = 'pointer';
-    clearBtn.style.borderRadius = '6px';
-    clearBtn.style.border = 'none';
-    clearBtn.style.background = '#555';
-    clearBtn.style.color = '#fff';
     clearBtn.addEventListener('click', () => {
         if (!confirm('Clear all locally remembered caught Pokémon?')) return;
         clearCaughtStorage();
@@ -421,24 +409,60 @@ function generateMapTabs() {
     container.appendChild(clearBtn);
 
     const tabsBar = document.createElement('div');
-    tabsBar.style.display = 'flex';
-    tabsBar.style.flexWrap = 'wrap';
-    tabsBar.style.gap = '6px';
-    tabsBar.style.padding = '8px';
-    tabsBar.style.background = '#061622';
+    tabsBar.className = 'tabs-bar';
     container.appendChild(tabsBar);
+    // Convert vertical wheel scrolling into horizontal scroll on the tabs bar
+    // while there is overflow in that direction. Use a non-passive listener
+    // so we can call preventDefault() and stop page scroll while the
+    // tabs bar can consume the wheel.
+    try {
+        tabsBar.addEventListener('wheel', (e) => {
+            // prefer deltaY (vertical scroll); if zero, fall back to deltaX
+            const delta = e.deltaY || e.deltaX;
+            if (!delta) return;
+            // invert direction and double the speed per user request
+            const scrollAmount = -delta * 2;
+            const direction = scrollAmount > 0 ? 1 : -1; // 1 -> scroll right, -1 -> left
+            const maxScrollRight = tabsBar.scrollWidth - tabsBar.clientWidth - tabsBar.scrollLeft;
+            const maxScrollLeft = tabsBar.scrollLeft;
+            // If there's no overflow in the wheel direction, allow page scroll
+            if ((direction > 0 && maxScrollRight <= 0) || (direction < 0 && maxScrollLeft <= 0)) {
+                return; // let the event bubble to page
+            }
+            // Consume the wheel — scroll horizontally by the computed amount
+            e.preventDefault();
+            // Use smooth behavior for nicer feel
+            try {
+                tabsBar.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+            } catch (err) {
+                // fallback if browser doesn't support options object
+                tabsBar.scrollLeft += scrollAmount;
+            }
+        }, { passive: false });
+    } catch (e) { /* ignore if addEventListener options unsupported */ }
 
     const contentArea = document.createElement('div');
-    contentArea.style.padding = '8px';
+    contentArea.className = 'maps-content';
     container.appendChild(contentArea);
 
     let first = true;
     for (const mapName of Object.keys(maps)) {
         const tabBtn = document.createElement('button');
-        tabBtn.textContent = formatDisplayName(mapName.substring(4)); // nice capitalization
+        tabBtn.className = 'tab-btn';
         tabBtn.setAttribute('data-map', mapName);
-        tabBtn.style.padding = '6px 10px';
-        tabBtn.style.cursor = 'pointer';
+
+        // left: small circle that can be colored based on content
+        const circle = document.createElement('div');
+        circle.className = 'tab-circle';
+        circle.dataset.map = mapName;
+
+        // label span (keeps previous behavior via textContent)
+        const label = document.createElement('span');
+        label.className = 'tab-label';
+        label.textContent = formatDisplayName(mapName.substring(4)); // nice capitalization
+
+        tabBtn.appendChild(circle);
+        tabBtn.appendChild(label);
         tabsBar.appendChild(tabBtn);
 
         const mapDiv = document.createElement('div');
@@ -458,7 +482,7 @@ function generateMapTabs() {
         img.style.width = '100%';
         img.style.height = 'auto';
         img.alt = mapName;
-        const imgSrc = (window.mapImages && (window.mapImages[mapName] || window.mapImages[mapName.toLowerCase()])) || '';
+        const imgSrc = (imgMapping && imgMapping[mapName]) || '';
         if (imgSrc) img.src = imgSrc;
         else img.style.background = '#0b2633';
         left.appendChild(img);
@@ -532,6 +556,7 @@ function generateMapTabs() {
                 // start with species 0 placeholder and hide the real identity
                 const placeholderUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png`;
                 const realUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${encodeURIComponent(id)}.png`;
+
                 pimg.src = placeholderUrl;
                 pimg.alt = '???';
                 // store real values for later reveal
@@ -576,6 +601,24 @@ function generateMapTabs() {
         contentArea.appendChild(mapDiv);
 
         tabBtn.doClick = () => {
+            // mark selected
+            const allBtns = tabsBar.querySelectorAll('.tab-btn');
+            for (const b of allBtns) b.classList.remove('selected');
+            tabBtn.classList.add('selected');
+
+            // scroll the clicked tab to the far left of the tabs bar if possible
+            try {
+                const barRect = tabsBar.getBoundingClientRect();
+                const tabRect = tabBtn.getBoundingClientRect();
+                // compute desired scroll so the tab's left aligns with the bar's left
+                let desired = tabsBar.scrollLeft + (tabRect.left - barRect.left);
+                // clamp to valid scroll range
+                const max = Math.max(0, tabsBar.scrollWidth - tabsBar.clientWidth);
+                if (desired < 0) desired = 0;
+                if (desired > max) desired = max;
+                try { tabsBar.scrollTo({ left: desired, behavior: 'smooth' }); } catch (e) { tabsBar.scrollLeft = desired; }
+            } catch (e) { /* ignore scrolling errors */ }
+
             // hide other mapDivs
             for (const ch of contentArea.children) ch.style.display = 'none';
             mapDiv.style.display = 'block';

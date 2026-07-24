@@ -4,6 +4,51 @@
     <meta charset="utf-8">
     <title>Tracker</title>
     <link rel="stylesheet" href="tracker.css">
+    <style>
+    /* Tab UI styles migrated from inline JS */
+    .status-badge {
+        padding: 6px 10px;
+        border-radius: 6px;
+        display: inline-block;
+        margin: 8px;
+        background: #3a3f44;
+        color: #fff;
+        font-weight: 600;
+    }
+    .clear-btn {
+        margin: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        border-radius: 6px;
+        border: none;
+        background: #555;
+        color: #fff;
+    }
+    .tabs-bar {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 6px;
+        padding: 8px;
+        background: #061622;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .maps-content { padding: 8px; }
+    .tab-btn {
+        padding: 6px 10px;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
+        border-radius: 6px;
+    }
+    .tab-btn.selected { background: rgba(255,255,255,0.26); }
+    .tab-circle { width: 12px; height: 12px; border-radius: 50%; background: #777; display: inline-block; margin-right: 8px; flex: 0 0 auto; }
+    .tab-label { vertical-align: middle; }
+    </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 

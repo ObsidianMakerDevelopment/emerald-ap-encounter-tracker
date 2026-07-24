@@ -4,6 +4,51 @@
     <meta charset="utf-8">
     <title>Tracker</title>
     <link rel="stylesheet" href="tracker.css">
+    <style>
+    /* Tab UI styles migrated from inline JS */
+    .status-badge {
+        padding: 6px 10px;
+        border-radius: 6px;
+        display: inline-block;
+        margin: 8px;
+        background: #3a3f44;
+        color: #fff;
+        font-weight: 600;
+    }
+    .clear-btn {
+        margin: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        border-radius: 6px;
+        border: none;
+        background: #555;
+        color: #fff;
+    }
+    .tabs-bar {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 6px;
+        padding: 8px;
+        background: #061622;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .maps-content { padding: 8px; }
+    .tab-btn {
+        padding: 6px 10px;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
+        border-radius: 6px;
+    }
+    .tab-btn.selected { background: rgba(255,255,255,0.26); }
+    .tab-circle { width: 12px; height: 12px; border-radius: 50%; background: #777; display: inline-block; margin-right: 8px; flex: 0 0 auto; }
+    .tab-label { vertical-align: middle; }
+    </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script type="module" crossorigin>//#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -67526,6 +67571,120 @@ function decodeTokenData(arrayBuffer) {
 }
 //#endregion
 //#region tracker/tab_mapping.mjs
+var imgMapping = {
+	"MAP_ABANDONED_SHIP_HIDDEN_FLOOR_CORRIDORS": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_ABANDONED_SHIP_ROOMS_B1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_ARTISAN_CAVE_1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_ARTISAN_CAVE_B1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_CAVE_OF_ORIGIN_1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_CAVE_OF_ORIGIN_ENTRANCE": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_DESERT_UNDERPASS": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_DEWFORD_TOWN": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_EVER_GRANDE_CITY": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/evergrande/evergrande.png",
+	"MAP_FIERY_PATH": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_GRANITE_CAVE_1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_GRANITE_CAVE_B1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_GRANITE_CAVE_B2F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_GRANITE_CAVE_STEVENS_ROOM": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_JAGGED_PASS": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_LILYCOVE_CITY": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/lilycove/lilycove.png",
+	"MAP_MAGMA_HIDEOUT_1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MAGMA_HIDEOUT_2F_1R": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MAGMA_HIDEOUT_2F_2R": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MAGMA_HIDEOUT_2F_3R": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MAGMA_HIDEOUT_3F_1R": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MAGMA_HIDEOUT_3F_2R": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MAGMA_HIDEOUT_3F_3R": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MAGMA_HIDEOUT_4F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_METEOR_FALLS_1F_1R": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_METEOR_FALLS_1F_2R": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_METEOR_FALLS_B1F_1R": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_METEOR_FALLS_B1F_2R": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_METEOR_FALLS_STEVENS_CAVE": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MIRAGE_TOWER_1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MIRAGE_TOWER_2F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MIRAGE_TOWER_3F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MIRAGE_TOWER_4F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MOSSDEEP_CITY": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/mossdeep/mossdeep.png",
+	"MAP_MT_PYRE_1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MT_PYRE_2F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MT_PYRE_3F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MT_PYRE_4F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MT_PYRE_5F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MT_PYRE_6F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MT_PYRE_EXTERIOR": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_MT_PYRE_SUMMIT": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_NEW_MAUVILLE_ENTRANCE": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_NEW_MAUVILLE_INSIDE": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_PACIFIDLOG_TOWN": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_PETALBURG_CITY": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/petalburg/petalburg.png",
+	"MAP_PETALBURG_WOODS": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_104/petalburg_woods.png",
+	"MAP_ROUTE101": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_101/rt_101.png",
+	"MAP_ROUTE102": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_102/rt_102.png",
+	"MAP_ROUTE103": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_103/rt_103.png",
+	"MAP_ROUTE104": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_104/rt_104.png",
+	"MAP_ROUTE105": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_105/rt_105.png",
+	"MAP_ROUTE106": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_106/rt_106.png",
+	"MAP_ROUTE107": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_107/rt_107.png",
+	"MAP_ROUTE108": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_108/rt_108.png",
+	"MAP_ROUTE109": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_109/rt_109.png",
+	"MAP_ROUTE110": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_110/rt_110.png",
+	"MAP_ROUTE111": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_111/rt_111.png",
+	"MAP_ROUTE112": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_112/rt_112.png",
+	"MAP_ROUTE113": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_113/rt_113.png",
+	"MAP_ROUTE114": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_114/rt_114.png",
+	"MAP_ROUTE115": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_115/rt_115.png",
+	"MAP_ROUTE116": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_116/rt_116.png",
+	"MAP_ROUTE117": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_117/rt_117.png",
+	"MAP_ROUTE118": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_118/rt_118.png",
+	"MAP_ROUTE119": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_119/rt_119.png",
+	"MAP_ROUTE120": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_120/rt_120.png",
+	"MAP_ROUTE121": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_121/rt_121.png",
+	"MAP_ROUTE122": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_122/rt_122.png",
+	"MAP_ROUTE123": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_123/rt_123.png",
+	"MAP_ROUTE124": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_124/rt_124.png",
+	"MAP_ROUTE125": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_125/rt_125.png",
+	"MAP_ROUTE126": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_126/rt_126.png",
+	"MAP_ROUTE127": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_127/rt_127.png",
+	"MAP_ROUTE128": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_128/rt_128.png",
+	"MAP_ROUTE129": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_129/rt_129.png",
+	"MAP_ROUTE130": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_130/rt_130.png",
+	"MAP_ROUTE131": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_131/rt_131.png",
+	"MAP_ROUTE132": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_132/rt_132.png",
+	"MAP_ROUTE133": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_133/rt_133.png",
+	"MAP_ROUTE134": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_134/rt_134.png",
+	"MAP_RUSTURF_TUNNEL": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SAFARI_ZONE_NORTH": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SAFARI_ZONE_NORTHEAST": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SAFARI_ZONE_NORTHWEST": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SAFARI_ZONE_SOUTH": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SAFARI_ZONE_SOUTHEAST": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SAFARI_ZONE_SOUTHWEST": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SEAFLOOR_CAVERN_ENTRANCE": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SEAFLOOR_CAVERN_ROOM1": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SEAFLOOR_CAVERN_ROOM2": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SEAFLOOR_CAVERN_ROOM3": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SEAFLOOR_CAVERN_ROOM4": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SEAFLOOR_CAVERN_ROOM5": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SEAFLOOR_CAVERN_ROOM6": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SEAFLOOR_CAVERN_ROOM7": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SEAFLOOR_CAVERN_ROOM8": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SHOAL_CAVE_LOW_TIDE_ENTRANCE_ROOM": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SHOAL_CAVE_LOW_TIDE_ICE_ROOM": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SHOAL_CAVE_LOW_TIDE_INNER_ROOM": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SHOAL_CAVE_LOW_TIDE_LOWER_ROOM": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SHOAL_CAVE_LOW_TIDE_STAIRS_ROOM": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SKY_PILLAR_1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SKY_PILLAR_3F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SKY_PILLAR_5F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_SLATEPORT_CITY": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/slateport/slateport.png",
+	"MAP_SOOTOPOLIS_CITY": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/sootopolis/sootopolis.png",
+	"MAP_UNDERWATER_ROUTE124": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_124/rt_124_underwater.png",
+	"MAP_UNDERWATER_ROUTE126": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/routes/rt_126/rt_126_underwater.png",
+	"MAP_VICTORY_ROAD_1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_VICTORY_ROAD_B1F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png",
+	"MAP_VICTORY_ROAD_B2F": "https://raw.githubusercontent.com/seto10987/Archipelago-Emerald-AP-Tracker/main/images/maps/cities/dewford/dewford.png"
+};
 var tabMapping = {
 	0: "MAP_PETALBURG_CITY",
 	11: "MAP_DEWFORD_TOWN",
@@ -68006,25 +68165,13 @@ function generateMapTabs() {
 	container.style.display = "block";
 	const statusBadge = document.createElement("div");
 	statusBadge.id = "syncStatusBadge";
-	statusBadge.style.padding = "6px 10px";
-	statusBadge.style.borderRadius = "6px";
-	statusBadge.style.display = "inline-block";
-	statusBadge.style.margin = "8px";
-	statusBadge.style.background = "#3a3f44";
-	statusBadge.style.color = "#fff";
-	statusBadge.style.fontWeight = "600";
+	statusBadge.className = "status-badge";
 	statusBadge.textContent = "Sync: Unknown";
 	container.appendChild(statusBadge);
 	const clearBtn = document.createElement("button");
 	clearBtn.id = "clearCaughtBtn";
+	clearBtn.className = "clear-btn";
 	clearBtn.textContent = "Clear Local Caught";
-	clearBtn.style.margin = "8px";
-	clearBtn.style.padding = "6px 10px";
-	clearBtn.style.cursor = "pointer";
-	clearBtn.style.borderRadius = "6px";
-	clearBtn.style.border = "none";
-	clearBtn.style.background = "#555";
-	clearBtn.style.color = "#fff";
 	clearBtn.addEventListener("click", () => {
 		if (!confirm("Clear all locally remembered caught Pokémon?")) return;
 		clearCaughtStorage();
@@ -68040,22 +68187,44 @@ function generateMapTabs() {
 	});
 	container.appendChild(clearBtn);
 	const tabsBar = document.createElement("div");
-	tabsBar.style.display = "flex";
-	tabsBar.style.flexWrap = "wrap";
-	tabsBar.style.gap = "6px";
-	tabsBar.style.padding = "8px";
-	tabsBar.style.background = "#061622";
+	tabsBar.className = "tabs-bar";
 	container.appendChild(tabsBar);
+	try {
+		tabsBar.addEventListener("wheel", (e) => {
+			const delta = e.deltaY || e.deltaX;
+			if (!delta) return;
+			const scrollAmount = -delta * 2;
+			const direction = scrollAmount > 0 ? 1 : -1;
+			const maxScrollRight = tabsBar.scrollWidth - tabsBar.clientWidth - tabsBar.scrollLeft;
+			const maxScrollLeft = tabsBar.scrollLeft;
+			if (direction > 0 && maxScrollRight <= 0 || direction < 0 && maxScrollLeft <= 0) return;
+			e.preventDefault();
+			try {
+				tabsBar.scrollBy({
+					left: scrollAmount,
+					behavior: "smooth"
+				});
+			} catch (err) {
+				tabsBar.scrollLeft += scrollAmount;
+			}
+		}, { passive: false });
+	} catch (e) {}
 	const contentArea = document.createElement("div");
-	contentArea.style.padding = "8px";
+	contentArea.className = "maps-content";
 	container.appendChild(contentArea);
 	let first = true;
 	for (const mapName of Object.keys(maps)) {
 		const tabBtn = document.createElement("button");
-		tabBtn.textContent = formatDisplayName(mapName.substring(4));
+		tabBtn.className = "tab-btn";
 		tabBtn.setAttribute("data-map", mapName);
-		tabBtn.style.padding = "6px 10px";
-		tabBtn.style.cursor = "pointer";
+		const circle = document.createElement("div");
+		circle.className = "tab-circle";
+		circle.dataset.map = mapName;
+		const label = document.createElement("span");
+		label.className = "tab-label";
+		label.textContent = formatDisplayName(mapName.substring(4));
+		tabBtn.appendChild(circle);
+		tabBtn.appendChild(label);
 		tabsBar.appendChild(tabBtn);
 		const mapDiv = document.createElement("div");
 		mapDiv.style.display = "none";
@@ -68071,7 +68240,7 @@ function generateMapTabs() {
 		img.style.width = "100%";
 		img.style.height = "auto";
 		img.alt = mapName;
-		const imgSrc = window.mapImages && (window.mapImages[mapName] || window.mapImages[mapName.toLowerCase()]) || "";
+		const imgSrc = imgMapping && imgMapping[mapName] || "";
 		if (imgSrc) img.src = imgSrc;
 		else img.style.background = "#0b2633";
 		left.appendChild(img);
@@ -68163,6 +68332,25 @@ function generateMapTabs() {
 		mapDiv.appendChild(right);
 		contentArea.appendChild(mapDiv);
 		tabBtn.doClick = () => {
+			const allBtns = tabsBar.querySelectorAll(".tab-btn");
+			for (const b of allBtns) b.classList.remove("selected");
+			tabBtn.classList.add("selected");
+			try {
+				const barRect = tabsBar.getBoundingClientRect();
+				const tabRect = tabBtn.getBoundingClientRect();
+				let desired = tabsBar.scrollLeft + (tabRect.left - barRect.left);
+				const max = Math.max(0, tabsBar.scrollWidth - tabsBar.clientWidth);
+				if (desired < 0) desired = 0;
+				if (desired > max) desired = max;
+				try {
+					tabsBar.scrollTo({
+						left: desired,
+						behavior: "smooth"
+					});
+				} catch (e) {
+					tabsBar.scrollLeft = desired;
+				}
+			} catch (e) {}
 			for (const ch of contentArea.children) ch.style.display = "none";
 			mapDiv.style.display = "block";
 		};
