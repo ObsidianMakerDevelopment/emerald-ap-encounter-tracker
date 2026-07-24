@@ -8,6 +8,30 @@
 </head>
 
 <body>
+    <button id="configToggle" type="button" style="position:fixed;top:12px;right:12px;z-index:999;padding:8px">Settings</button>
+    <div id="configBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:998"></div>
+    <div id="configMenu" style="display:none;position:fixed;inset:auto;top:50%;left:50%;transform:translate(-50%,-50%);width:min(420px,calc(100vw-32px));padding:20px;background:#051018;border-radius:8px;color:white;z-index:999">
+        <h2 style="text-align:center;margin-bottom:12px">Configuration</h2>
+        <div style="margin:10px 0">
+            <label for="configServer">AP Server</label>
+            <input id="configServer" type="text" placeholder="wss://example.com:38281" style="width:100%;padding:8px;margin-top:6px" />
+        </div>
+        <div style="margin:10px 0">
+            <label for="configUsername">Username</label>
+            <input id="configUsername" type="text" placeholder="Player1" style="width:100%;padding:8px;margin-top:6px" />
+        </div>
+        <div style="margin:10px 0">
+            <label for="configPassword">Password</label>
+            <input id="configPassword" type="password" placeholder="Optional" style="width:100%;padding:8px;margin-top:6px" />
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+            <button id="applyConfigBtn" type="button" style="flex:1;padding:10px">Apply & Connect</button>
+            <button id="loadPatchBtn" type="button" style="flex:1;padding:10px">Load Patch</button>
+            <button id="cancelConfigBtn" type="button" style="flex:1;padding:10px">Cancel</button>
+        </div>
+        <div id="configStatus" style="margin-top:12px;font-size:0.9rem;color:#ddd"></div>
+    </div>
+
     <script type="module" src="tracker.mjs"></script>
 </body>
 
