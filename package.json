@@ -1,0 +1,19 @@
+{
+    "name": "emerald-encounter-tracker",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "build": "vite build"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "archipelago.js": "^2.1.0",
+        "pokedex-promise-v2": "^4.2.3"
+    },
+    "devDependencies": {
+        "vite": "^8.1.5",
+        "vite-plugin-singlefile": "^2.3.3"
+    }
+}
