@@ -1,7 +1,8 @@
 import * as AP from "archipelago.js";
 import * as ZIP from "jszip";
 import { decodeTokenData } from "./tokensDecoder.mjs";
-import {emerald_data} from "./data.mjs"
+import { emerald_data } from "./data.mjs"
+import { tabMapping } from "./tab_mapping.mjs"
 // Minimal tracker bootstrap with Archipelago login/config UI
 const configStorageKey = "ap_tracker_config";
 
@@ -34,7 +35,19 @@ async function loginToAP(server, username, password) {
         const logData = await ap_client.login(server, username, "Pokemon Emerald", { password, version: { major: 0, minor: 6, build: 3 }, items: AP.itemsHandlingFlags.all });
         ap_client.logData = logData;
 
+        ap_client.socket.on("bounced", (packet) => {
+            console.log("Bounce data", packet.data);
+            if (packet.data && packet.data.mapId) {
+                //Try changing tab to that map if it exists
 
+                tabMapping[packet.data.mapId] && document.querySelectorAll("#mapsContainer button").forEach(btn => {
+                    if (btn.textContent === tabMapping[packet.data.mapId].substring(4)) {
+                        btn.click();
+                    }
+                });
+            }
+
+        });
         ap_client.socket.on("disconnected", async () => {
             try {
                 await ap_client.login(server, username, "Pokemon Emerald", { password, version: { major: 0, minor: 6, build: 6 }, items: AP.itemsHandlingFlags.all });
@@ -42,6 +55,32 @@ async function loginToAP(server, username, password) {
                 console.error("Re-login failed", err);
             }
         });
+
+
+        // Mark species as completed based on any existing logData items
+        try {
+            if (logData && logData.items) {
+                // logData.items might be an array of item objects or names
+                for (const it of logData.items) {
+                    const name = it && (it.name || it.item_name || it.item);
+                    if (name) markSpeciesCompleted(name.toString());
+                }
+            }
+        } catch (e) { console.warn('Error while marking from logData', e); }
+
+        // Listen for future itemsReceived events and mark species accordingly
+        try {
+            if (ap_client.items && typeof ap_client.items.on === 'function') {
+                ap_client.items.on('itemsReceived', (items) => {
+                    try {
+                        for (const it of items) {
+                            const name = it && (it.name || it.item_name || it.item);
+                            if (name) markSpeciesCompleted(name.toString());
+                        }
+                    } catch (e) { console.error('itemsReceived handler error', e); }
+                }, 1);
+            }
+        } catch (e) { console.warn('Failed to register itemsReceived handler', e); }
 
 
 
@@ -94,6 +133,8 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         } catch (e) { console.error(e); }
     });
+    // Disable Apply until a patch with maps is loaded
+    if (applyBtn) applyBtn.disabled = true;
 
     applyBtn.addEventListener("click", async () => {
         const server = document.getElementById("configServer").value.trim();
@@ -107,6 +148,12 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             await loginToAP(server, username, password);
             closeConfigMenu();
+            // After successful login, generate map tabs if maps are present
+            if (window.maps && Object.keys(window.maps).length > 0) {
+                try { generateMapTabs(); } catch (e) { console.error('Failed to generate map tabs', e); }
+            } else {
+                document.getElementById('configStatus').textContent = 'No maps loaded; please load a patch first.';
+            }
         } catch (err) {
             // leave menu open for retry
         }
@@ -115,6 +162,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Auto-open menu if no saved config
     const saved = loadSavedConfig();
     openConfigMenu();
+    // Start polling for caught state array (window.caught)
+    try { startCaughtPolling(); } catch (e) { console.error('startCaughtPolling failed', e); }
 });
 
 function extractPokemonPerMap(tokens) {
@@ -131,9 +180,8 @@ function extractPokemonPerMap(tokens) {
     }
     let speciesNameMap = {};
     //Build species name map:
-    for(let key in emerald_data.constants)
-    {
-        if(key.startsWith("SPECIES_")) {
+    for (let key in emerald_data.constants) {
+        if (key.startsWith("SPECIES_")) {
             const speciesId = emerald_data.constants[key];
             const speciesName = key.replace("SPECIES_", "");
             speciesNameMap[speciesId] = speciesName;
@@ -154,7 +202,7 @@ function extractPokemonPerMap(tokens) {
             let percentages = {};
             for (let species in counts) {
                 const speciesName = speciesNameMap[species] || species;
-                percentages[speciesName] = (counts[species] / total) * 100;
+                percentages[speciesName] = { probability: (counts[species] / total) * 100, id: species, name: speciesName };
             }
             result[mapKey][encounterType] = percentages;
         }
@@ -162,6 +210,18 @@ function extractPokemonPerMap(tokens) {
     return result;
 }
 
+// Turn a raw species name like 'NIDORAN_M' or 'MR_MIME' into 'Nidoran M' or 'Mr Mime'
+function formatDisplayName(raw) {
+    if (raw === undefined || raw === null) return '';
+    const s = String(raw);
+    // if it's numeric, just return as-is
+    if (/^\d+$/.test(s)) return s;
+    // replace underscores with spaces, lowercase then title-case each word
+    return s.replace(/_/g, ' ').toLowerCase().split(' ').map(w => {
+        if (!w) return w;
+        return w.charAt(0).toUpperCase() + w.slice(1);
+    }).join(' ');
+}
 
 function openFilePicker(optionsCallback) {
     const input = document.createElement("input");
@@ -194,6 +254,15 @@ function openFilePicker(optionsCallback) {
                 //console.log("Decoded tokens:", options.tokens);
 
                 window.maps = extractPokemonPerMap(options.tokens);
+                // enable Apply button when maps are present
+                if (window.maps && Object.keys(window.maps).length > 0) {
+                    const applyBtn = document.getElementById('applyConfigBtn');
+                    if (applyBtn) applyBtn.disabled = false;
+                    const status = document.getElementById('configStatus');
+                    if (status) status.textContent = 'Patch applied — Apply & Connect is enabled.';
+                    // generate tabs now that patch applied
+                    try { generateMapTabs(); } catch (e) { console.error('generateMapTabs failed', e); }
+                }
             }
 
             if (optionsCallback) optionsCallback(options);
@@ -206,3 +275,327 @@ function openFilePicker(optionsCallback) {
     input.click();
 }
 window.openFilePicker = openFilePicker;
+
+// Create tabs and UI for maps found in window.maps
+function generateMapTabs() {
+    const maps = window.maps || {};
+    const container = document.getElementById('mapsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    container.style.display = 'block';
+
+    // sync status badge
+    const statusBadge = document.createElement('div');
+    statusBadge.id = 'syncStatusBadge';
+    statusBadge.style.padding = '6px 10px';
+    statusBadge.style.borderRadius = '6px';
+    statusBadge.style.display = 'inline-block';
+    statusBadge.style.margin = '8px';
+    statusBadge.style.background = '#3a3f44';
+    statusBadge.style.color = '#fff';
+    statusBadge.style.fontWeight = '600';
+    statusBadge.textContent = 'Sync: Unknown';
+    container.appendChild(statusBadge);
+
+    const tabsBar = document.createElement('div');
+    tabsBar.style.display = 'flex';
+    tabsBar.style.flexWrap = 'wrap';
+    tabsBar.style.gap = '6px';
+    tabsBar.style.padding = '8px';
+    tabsBar.style.background = '#061622';
+    container.appendChild(tabsBar);
+
+    const contentArea = document.createElement('div');
+    contentArea.style.padding = '8px';
+    container.appendChild(contentArea);
+
+    let first = true;
+    for (const mapName of Object.keys(maps)) {
+        const tabBtn = document.createElement('button');
+        tabBtn.textContent = mapName.substring(4); // remove "MAP_" prefix for display
+        tabBtn.style.padding = '6px 10px';
+        tabBtn.style.cursor = 'pointer';
+        tabsBar.appendChild(tabBtn);
+
+        const mapDiv = document.createElement('div');
+        mapDiv.style.display = 'none';
+        mapDiv.style.width = '100%';
+        mapDiv.style.minHeight = 'calc(100vh - 60px)';
+        mapDiv.style.boxSizing = 'border-box';
+
+        // left: image half
+        const left = document.createElement('div');
+        left.style.width = '50%';
+        left.style.float = 'left';
+        left.style.boxSizing = 'border-box';
+        left.style.padding = '8px';
+
+        const img = document.createElement('img');
+        img.style.width = '100%';
+        img.style.height = 'auto';
+        img.alt = mapName;
+        const imgSrc = (window.mapImages && (window.mapImages[mapName] || window.mapImages[mapName.toLowerCase()])) || '';
+        if (imgSrc) img.src = imgSrc;
+        else img.style.background = '#0b2633';
+        left.appendChild(img);
+        mapDiv.appendChild(left);
+
+        // right: groups
+        const right = document.createElement('div');
+        right.style.width = '50%';
+        right.style.float = 'right';
+        right.style.boxSizing = 'border-box';
+        right.style.padding = '8px';
+        right.style.display = 'flex';
+        right.style.flexDirection = 'column';
+        right.style.gap = '10px';
+
+        const mapData = maps[mapName];
+        for (const groupName of Object.keys(mapData)) {
+            const groupBox = document.createElement('div');
+            groupBox.style.border = '1px solid rgba(255,255,255,0.06)';
+            groupBox.style.borderRadius = '8px';
+            groupBox.style.padding = '8px';
+            groupBox.style.background = 'rgba(255,255,255,0.02)';
+
+            const header = document.createElement('div');
+            header.textContent = groupName;
+            header.style.fontWeight = '700';
+            header.style.marginBottom = '6px';
+            groupBox.appendChild(header);
+
+            const speciesWrap = document.createElement('div');
+            speciesWrap.style.display = 'flex';
+            speciesWrap.style.flexWrap = 'wrap';
+            speciesWrap.style.gap = '8px';
+
+            const speciesObj = mapData[groupName] || {};
+            for (const speciesName of Object.keys(speciesObj)) {
+                const spec = speciesObj[speciesName] || {};
+                const pct = spec.probability ?? spec;
+                const id = spec.id ?? speciesName;
+                const rawDisplayName = spec.name || speciesName;
+                const displayName = formatDisplayName(rawDisplayName);
+
+                const card = document.createElement('div');
+                card.style.width = '84px';
+                card.style.textAlign = 'center';
+                card.dataset.species = displayName;
+                card.dataset.speciesId = id;
+
+                // click to toggle completed state
+                card.style.cursor = 'pointer';
+                card.addEventListener('click', () => {
+                    const is = card.classList.toggle('completed');
+                    updateCardCompletedStyle(card, is);
+                });
+
+                const pimg = document.createElement('img');
+                pimg.style.width = '64px';
+                pimg.style.height = '64px';
+                pimg.style.objectFit = 'contain';
+                // start with species 0 placeholder and hide the real identity
+                const placeholderUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png`;
+                const realUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${encodeURIComponent(id)}.png`;
+                pimg.src = placeholderUrl;
+                pimg.alt = '???';
+                // store real values for later reveal
+                card._realImg = realUrl;
+                card._placeholderImg = placeholderUrl;
+                card._realName = displayName;
+                card._rawName = rawDisplayName;
+                card._speciesId = id;
+                card.appendChild(pimg);
+
+                const lbl = document.createElement('div');
+                lbl.style.fontSize = '0.8rem';
+                lbl.style.marginTop = '4px';
+                // initial hidden label
+                lbl.textContent = `???`;
+                // store probability text for reveal
+                card._probText = `${Number(pct).toFixed(1)}%`;
+                card.appendChild(lbl);
+
+                // attach references for update
+                card._imgEl = pimg;
+                card._lblEl = lbl;
+
+                speciesWrap.appendChild(card);
+                // ensure initial hidden styling
+                updateCardCompletedStyle(card, false);
+                // track element for programmatic updates by id and name
+                window.speciesElements = window.speciesElements || {};
+                const idKey = String(id).toUpperCase();
+                const nameKey = String(displayName).toUpperCase();
+                if (!window.speciesElements[idKey]) window.speciesElements[idKey] = [];
+                window.speciesElements[idKey].push(card);
+                if (!window.speciesElements[nameKey]) window.speciesElements[nameKey] = [];
+                window.speciesElements[nameKey].push(card);
+            }
+
+            groupBox.appendChild(speciesWrap);
+            right.appendChild(groupBox);
+        }
+
+        mapDiv.appendChild(right);
+        contentArea.appendChild(mapDiv);
+
+        tabBtn.doClick = () => {
+            // hide other mapDivs
+            for (const ch of contentArea.children) ch.style.display = 'none';
+            mapDiv.style.display = 'block';
+        }
+        tabBtn.addEventListener('click', () => {
+           tabBtn.doClick();
+        });
+
+        if (first) {
+            first = false;
+            tabBtn.click();
+        }
+    }
+}
+
+function updateCardCompletedStyle(card, completed) {
+    // Reveal or hide the real sprite and name depending on caught state
+    try {
+        if (completed) {
+            if (card._imgEl && card._realImg) card._imgEl.src = card._realImg;
+            if (card._lblEl) card._lblEl.textContent = `${card._realName}${card._probText ? ' — ' + card._probText : ''}`;
+            card.style.filter = '';
+            card.style.opacity = '1';
+            card.style.border = '2px solid #2ea44f';
+        } else {
+            if (card._imgEl && card._placeholderImg) card._imgEl.src = card._placeholderImg;
+            if (card._lblEl) card._lblEl.textContent = '???';
+            card.style.filter = 'grayscale(100%)';
+            card.style.opacity = '0.8';
+            card.style.border = '';
+        }
+    } catch (e) {
+        console.error('updateCardCompletedStyle error', e);
+    }
+}
+
+function markSpeciesCompleted(speciesName) {
+    if (!speciesName) return;
+    // speciesName may be like 'POTION' or 'NIDOQUEEN' - try uppercase
+    const key = String(speciesName).toUpperCase();
+    const elements = window.speciesElements && window.speciesElements[key];
+    if (elements && elements.length) {
+        for (const el of elements) {
+            if (!el.classList.contains('completed')) {
+                el.classList.add('completed');
+                updateCardCompletedStyle(el, true);
+            }
+        }
+        return;
+    }
+    // try best-effort: search through all speciesElements keys for substring match
+    if (window.speciesElements) {
+        for (const nameKey in window.speciesElements) {
+            if (nameKey === key) continue;
+            if (nameKey.includes(key) || key.includes(nameKey)) {
+                for (const el of window.speciesElements[nameKey]) {
+                    if (!el.classList.contains('completed')) {
+                        el.classList.add('completed');
+                        updateCardCompletedStyle(el, true);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Reveal all cards for a given numeric species id (1..386)
+function revealSpeciesById(speciesId) {
+    if (!speciesId) return;
+    const key = String(speciesId).toUpperCase();
+    const elements = window.speciesElements && window.speciesElements[key];
+    if (elements && elements.length) {
+        for (const el of elements) {
+            if (!el.classList.contains('completed')) {
+                el.classList.add('completed');
+                updateCardCompletedStyle(el, true);
+            }
+        }
+    }
+}
+
+// Start a polling loop that checks window.caught (length 386) every second
+function startCaughtPolling() {
+    if (window._caughtPollIntervalId) return; // already running
+    window.maxPokemon = 386;
+    if (!Array.isArray(window.caught) || window.caught.length < window.maxPokemon + 1) {
+        // create a 1-based array of length 387 (index 1..386)
+        window.caught = new Array(window.maxPokemon + 1).fill(false);
+    }
+    function isConnected() {
+        try {
+            if (window.ap_client) {
+                // common socket flag
+                if (window.ap_client.socket && typeof window.ap_client.socket.connected !== 'undefined') return !!window.ap_client.socket.connected;
+                // common client flag
+                if (typeof window.ap_client.connected !== 'undefined') return !!window.ap_client.connected;
+                // some clients implement isConnected()
+                if (typeof window.ap_client.isConnected === 'function') return !!window.ap_client.isConnected();
+            }
+        } catch (e) {
+            console.warn('isConnected check failed', e);
+        }
+        return false;
+    }
+
+    // set initial badge state immediately
+    try {
+        const badgeInit = document.getElementById('syncStatusBadge');
+        const connectedInit = isConnected();
+        if (badgeInit) {
+            if (connectedInit) {
+                badgeInit.textContent = 'Sync: Connected';
+                badgeInit.style.background = '#2ea44f';
+            } else {
+                badgeInit.textContent = 'Sync: Disconnected (manual only)';
+                badgeInit.style.background = '#b02a37';
+            }
+        }
+    } catch (e) { /* ignore */ }
+
+    window._caughtPollIntervalId = setInterval(() => {
+        try {
+            const connected = isConnected();
+            const badge = document.getElementById('syncStatusBadge');
+            if (badge) {
+                if (connected) {
+                    badge.textContent = 'Sync: Connected';
+                    badge.style.background = '#2ea44f';
+                } else {
+                    badge.textContent = 'Sync: Disconnected (manual only)';
+                    badge.style.background = '#b02a37';
+                }
+            }
+
+            //ap_client.room.checkedLocations Pokedex starts at 3870001 for species 1 (Bulbasaur) and goes to 3870386 for species 386 (Deoxys)
+            if (window.ap_client && window.ap_client.room && Array.isArray(window.ap_client.room.checkedLocations)) {
+                for (let i = 1; i <= window.maxPokemon; i++) {
+                    const locId = 3870000 + i;
+                    const isCaught = window.ap_client.room.checkedLocations.includes(locId);
+                    if (window.caught[i] !== isCaught) {
+                        window.caught[i] = isCaught;
+                        if (isCaught) {
+                            revealSpeciesById(i);
+                        }
+                    }
+                }
+            }
+            if (!connected) return; // only sync revealed state from array when connected
+            for (let i = 1; i <= window.maxPokemon; i++) {
+                if (window.caught[i]) {
+                    revealSpeciesById(i);
+                }
+            }
+        } catch (e) {
+            console.error('caught poll error', e);
+        }
+    }, 1000);
+}
