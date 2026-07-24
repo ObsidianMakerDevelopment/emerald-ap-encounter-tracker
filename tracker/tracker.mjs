@@ -2,9 +2,37 @@ import * as AP from "archipelago.js";
 import * as ZIP from "jszip";
 import { decodeTokenData } from "./tokensDecoder.mjs";
 import { emerald_data } from "./data.mjs"
-import { tabMapping,imgMapping } from "./tab_mapping.mjs"
+import { tabMapping, imgMapping } from "./tab_mapping.mjs"
+import { pokemons } from "./mons.mjs"
 // Minimal tracker bootstrap with Archipelago login/config UI
 const configStorageKey = "ap_tracker_config";
+const mapsStoragePrefix = "ap_tracker_maps_v1::";
+
+function mapsStorageKeyFor(username) {
+    if (!username) return mapsStoragePrefix + "__anonymous__";
+    return mapsStoragePrefix + String(username).toLowerCase();
+}
+
+function saveMapsToStorage(username, maps) {
+    try {
+        const key = mapsStorageKeyFor(username);
+        localStorage.setItem(key, JSON.stringify(maps));
+    } catch (e) {
+        console.error('Failed to save maps to storage', e);
+    }
+}
+
+function loadMapsFromStorage(username) {
+    try {
+        const key = mapsStorageKeyFor(username);
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch (e) {
+        console.error('Failed to load maps from storage', e);
+        return null;
+    }
+}
 
 function loadSavedConfig() {
     try {
@@ -144,6 +172,12 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("configStatus").textContent = "Server and username are required.";
             return;
         }
+        // If there's cached maps for this username, load them; otherwise clear window.maps
+        try {
+            const cached = loadMapsFromStorage(username);
+            if (cached) window.maps = cached;
+            else window.maps = null;
+        } catch (e) { window.maps = null; }
         saveConfig({ server, username, password });
         try {
             await loginToAP(server, username, password);
@@ -162,6 +196,18 @@ document.addEventListener("DOMContentLoaded", () => {
     // Auto-open menu if no saved config
     const saved = loadSavedConfig();
     openConfigMenu();
+    // Try to load cached maps for saved username so reload is fast.
+    try {
+        if (saved && saved.username) {
+            const cached = loadMapsFromStorage(saved.username);
+            if (cached) {
+                window.maps = cached;
+                const applyBtnEl = document.getElementById('applyConfigBtn');
+                if (applyBtnEl) applyBtnEl.disabled = false;
+                try { generateMapTabs(); } catch (e) { console.error('generateMapTabs failed', e); }
+            }
+        }
+    } catch (e) { console.error('Failed to load cached maps on startup', e); }
     // Load locally saved caught state and start polling for caught state array (window.caught)
     try { loadCaughtFromStorage(); } catch (e) { console.error('loadCaughtFromStorage failed', e); }
     try { startCaughtPolling(); } catch (e) { console.error('startCaughtPolling failed', e); }
@@ -221,6 +267,10 @@ function saveCaughtToStorage() {
         console.error('Failed to save caught to storage', e);
     }
 }
+setInterval(saveCaughtToStorage, 5000); // Save every 5 seconds
+window.saveCaughtToStorage = saveCaughtToStorage;
+window.loadCaughtFromStorage = loadCaughtFromStorage;
+window.clearCaughtStorage = clearCaughtStorage;
 
 function loadCaughtFromStorage() {
     try {
@@ -236,6 +286,10 @@ function loadCaughtFromStorage() {
                 for (let i = 0; i < window.caught.length; i++) newArr[i] = !!window.caught[i];
                 window.caught = newArr;
             }
+        }
+        for (let i = 1; i < window.caught.length; i++) {
+            if (window.caught && window.caught[i])
+                revealSpeciesById(i);
         }
     } catch (e) {
         console.warn('Failed to load caught from storage', e);
@@ -352,6 +406,11 @@ function openFilePicker(optionsCallback) {
                     if (applyBtn) applyBtn.disabled = false;
                     const status = document.getElementById('configStatus');
                     if (status) status.textContent = 'Patch applied — Apply & Connect is enabled.';
+                    // Persist maps for the current player username so reload is fast.
+                    try {
+                        const cfgUser = (options && options.slot && options.slot.player_name) || (document.getElementById('configUsername') && document.getElementById('configUsername').value) || (loadSavedConfig().username) || '';
+                        if (cfgUser) saveMapsToStorage(cfgUser, window.maps);
+                    } catch (e) { console.error('Failed to persist maps to storage', e); }
                     // generate tabs now that patch applied
                     try { generateMapTabs(); } catch (e) { console.error('generateMapTabs failed', e); }
                 }
@@ -531,7 +590,7 @@ function generateMapTabs() {
             for (const speciesName of Object.keys(speciesObj)) {
                 const spec = speciesObj[speciesName] || {};
                 const pct = spec.probability ?? spec;
-                const id = spec.id ?? speciesName;
+                let id = spec.id ?? speciesName;
                 const rawDisplayName = spec.name || speciesName;
                 const displayName = formatDisplayName(rawDisplayName);
 
@@ -539,6 +598,11 @@ function generateMapTabs() {
                 card.style.width = '84px';
                 card.style.textAlign = 'center';
                 card.dataset.species = displayName;
+
+                //Map internal id to national dex ids
+                //TODO:
+                id = pokemons.find(x => x.name.toUpperCase() === speciesName.toUpperCase())?.number || id;
+                window.pokemons = pokemons;
                 card.dataset.speciesId = id;
 
                 // click to toggle completed state
@@ -624,7 +688,7 @@ function generateMapTabs() {
             mapDiv.style.display = 'block';
         }
         tabBtn.addEventListener('click', () => {
-           tabBtn.doClick();
+            tabBtn.doClick();
         });
 
         if (first) {

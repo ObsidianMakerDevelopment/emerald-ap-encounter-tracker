@@ -80,25 +80,27 @@ export function decodeTokenData(arrayBuffer) {
 
                 if ("land_encounters" in map) {
                     for (let i = 0; i < map.land_encounters.slots.length; i++) {
-                        let address = map.land_encounters.address + 2 + (4 * i);
+                        let address = map.land_encounters.address + 2 + (4 * i);``
                         if (token.position == address) {
-                            token.name = "Land Encounter Slot " + i + " on Map " + map.name;
+                            token.name = "Land Encounter Slot " + i + " on Map " + mapKey;
                             token.dexsanity = true;
                             token.map = mapKey;
                             token.encounter_type = "Land";
-                            token.species = new Uint32Array(token.args)[0];
+                            token.species = new Uint16Array(token.args.buffer)[0];
+                            if (mapKey == "MAP_MT_PYRE_SUMMIT") { console.log("Map Mt Pyre Summit", mapKey, token, token.args) }
                         }
+
                     }
                 }
                 if ("water_encounters" in map) {
                     for (let i = 0; i < map.water_encounters.slots.length; i++) {
                         let address = map.water_encounters.address + 2 + (4 * i);
                         if (token.position == address) {
-                            token.name = "Water Encounter Slot " + i + " on Map " + map.name;
+                            token.name = "Water Encounter Slot " + i + " on Map " + mapKey;
                             token.dexsanity = true;
                             token.map = mapKey;
                             token.encounter_type = "Water";
-                            token.species = new Uint32Array(token.args)[0];
+                            token.species = new Uint16Array(token.args.buffer)[0];
                         }
                     }
                 }
@@ -106,7 +108,7 @@ export function decodeTokenData(arrayBuffer) {
                     for (let i = 0; i < map.fishing_encounters.slots.length; i++) {
                         let address = map.fishing_encounters.address + 2 + (4 * i);
                         if (token.position == address) {
-                            token.name = "Fishing Encounter Slot " + i + " on Map " + map.name;
+                            token.name = "Fishing Encounter Slot " + i + " on Map " + mapKey;
                             token.dexsanity = true;
                             token.map = mapKey;
                             token.encounter_type = {
@@ -121,7 +123,7 @@ export function decodeTokenData(arrayBuffer) {
                                 8: "Super Rod",
                                 9: "Super Rod",
                             }[i];
-                            token.species = new Uint32Array(token.args)[0];
+                            token.species = new Uint16Array(token.args.buffer)[0];
                         }
                     }
                 }
@@ -129,11 +131,11 @@ export function decodeTokenData(arrayBuffer) {
                     for (let i = 0; i < map.rock_smash_encounters.slots.length; i++) {
                         let address = map.rock_smash_encounters.address + 2 + (4 * i);
                         if (token.position == address) {
-                            token.name = "Rock Smash Encounter Slot " + i + " on Map " + map.name;
+                            token.name = "Rock Smash Encounter Slot " + i + " on Map " + mapKey;
                             token.dexsanity = true;
                             token.map = mapKey;
                             token.encounter_type = "Rock Smash";
-                            token.species = new Uint32Array(token.args)[0];
+                            token.species = new Uint16Array(token.args.buffer)[0];
                         }
                     }
                 }
