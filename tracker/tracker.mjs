@@ -36,12 +36,12 @@ async function loginToAP(server, username, password) {
         ap_client.logData = logData;
 
         ap_client.socket.on("bounced", (packet) => {
-            console.log("Bounce data", packet.data);
+            console.log("Bounce data", packet);
             if (packet.data && packet.data.mapId) {
                 //Try changing tab to that map if it exists
 
                 tabMapping[packet.data.mapId] && document.querySelectorAll("#mapsContainer button").forEach(btn => {
-                    if (btn.textContent === tabMapping[packet.data.mapId].substring(4)) {
+                    if (btn.getAttribute("data-map") === tabMapping[packet.data.mapId]) {
                         btn.click();
                     }
                 });
@@ -162,7 +162,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Auto-open menu if no saved config
     const saved = loadSavedConfig();
     openConfigMenu();
-    // Start polling for caught state array (window.caught)
+    // Load locally saved caught state and start polling for caught state array (window.caught)
+    try { loadCaughtFromStorage(); } catch (e) { console.error('loadCaughtFromStorage failed', e); }
     try { startCaughtPolling(); } catch (e) { console.error('startCaughtPolling failed', e); }
 });
 
@@ -208,6 +209,97 @@ function extractPokemonPerMap(tokens) {
         }
     }
     return result;
+}
+
+const CAUGHT_STORAGE_KEY = 'ap_tracker_caught_v1';
+
+function saveCaughtToStorage() {
+    try {
+        if (!Array.isArray(window.caught)) return;
+        localStorage.setItem(CAUGHT_STORAGE_KEY, JSON.stringify(window.caught));
+    } catch (e) {
+        console.error('Failed to save caught to storage', e);
+    }
+}
+
+function loadCaughtFromStorage() {
+    try {
+        const raw = localStorage.getItem(CAUGHT_STORAGE_KEY);
+        if (!raw) return;
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+            window.caught = arr;
+            // ensure length
+            window.maxPokemon = window.maxPokemon || 386;
+            if (window.caught.length < window.maxPokemon + 1) {
+                const newArr = new Array(window.maxPokemon + 1).fill(false);
+                for (let i = 0; i < window.caught.length; i++) newArr[i] = !!window.caught[i];
+                window.caught = newArr;
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load caught from storage', e);
+    }
+}
+
+function clearCaughtStorage() {
+    try {
+        localStorage.removeItem(CAUGHT_STORAGE_KEY);
+        window.caught = new Array((window.maxPokemon || 386) + 1).fill(false);
+    } catch (e) { console.error('Failed to clear caught storage', e); }
+}
+
+function applyLocalCaughtToUI() {
+    try {
+        if (!Array.isArray(window.caught)) return;
+        for (let i = 1; i < window.caught.length; i++) {
+            if (window.caught[i]) revealSpeciesById(i);
+        }
+    } catch (e) { console.error('applyLocalCaughtToUI error', e); }
+}
+
+function setCaughtStateForCard(card, state) {
+    try {
+        // if the card has a numeric species id, apply across all slots of that species
+        const sid = card && card._speciesId;
+        const n = parseInt(sid, 10);
+        if (!Number.isNaN(n) && n > 0) {
+            setCaughtStateForSpecies(n, !!state);
+            return;
+        }
+        // otherwise fall back to toggling this single card
+        if (state) {
+            if (!card.classList.contains('completed')) card.classList.add('completed');
+            updateCardCompletedStyle(card, true);
+        } else {
+            if (card.classList.contains('completed')) card.classList.remove('completed');
+            updateCardCompletedStyle(card, false);
+        }
+    } catch (e) { console.error('setCaughtStateForCard error', e); }
+}
+
+function setCaughtStateForSpecies(speciesId, state) {
+    try {
+        const key = String(speciesId).toUpperCase();
+        window.speciesElements = window.speciesElements || {};
+        const elements = window.speciesElements[key] || [];
+        for (const el of elements) {
+            if (state) {
+                if (!el.classList.contains('completed')) el.classList.add('completed');
+                updateCardCompletedStyle(el, true);
+            } else {
+                if (el.classList.contains('completed')) el.classList.remove('completed');
+                updateCardCompletedStyle(el, false);
+            }
+        }
+        // persist numeric species id
+        const n = parseInt(speciesId, 10);
+        if (!Number.isNaN(n) && n > 0) {
+            window.caught = window.caught || new Array((window.maxPokemon || 386) + 1).fill(false);
+            window.caught[n] = !!state;
+            saveCaughtToStorage();
+        }
+    } catch (e) { console.error('setCaughtStateForSpecies error', e); }
 }
 
 // Turn a raw species name like 'NIDORAN_M' or 'MR_MIME' into 'Nidoran M' or 'Mr Mime'
@@ -297,6 +389,37 @@ function generateMapTabs() {
     statusBadge.textContent = 'Sync: Unknown';
     container.appendChild(statusBadge);
 
+    // clear stored caught button
+    const clearBtn = document.createElement('button');
+    clearBtn.id = 'clearCaughtBtn';
+    clearBtn.textContent = 'Clear Local Caught';
+    clearBtn.style.margin = '8px';
+    clearBtn.style.padding = '6px 10px';
+    clearBtn.style.cursor = 'pointer';
+    clearBtn.style.borderRadius = '6px';
+    clearBtn.style.border = 'none';
+    clearBtn.style.background = '#555';
+    clearBtn.style.color = '#fff';
+    clearBtn.addEventListener('click', () => {
+        if (!confirm('Clear all locally remembered caught Pokémon?')) return;
+        clearCaughtStorage();
+        // reset UI
+        if (window.speciesElements) {
+            for (const key in window.speciesElements) {
+                for (const el of window.speciesElements[key]) {
+                    el.classList.remove('completed');
+                    updateCardCompletedStyle(el, false);
+                }
+            }
+        }
+        const badge = document.getElementById('syncStatusBadge');
+        if (badge) {
+            badge.textContent = 'Sync: Cleared Local';
+            badge.style.background = '#6c757d';
+        }
+    });
+    container.appendChild(clearBtn);
+
     const tabsBar = document.createElement('div');
     tabsBar.style.display = 'flex';
     tabsBar.style.flexWrap = 'wrap';
@@ -312,7 +435,8 @@ function generateMapTabs() {
     let first = true;
     for (const mapName of Object.keys(maps)) {
         const tabBtn = document.createElement('button');
-        tabBtn.textContent = mapName.substring(4); // remove "MAP_" prefix for display
+        tabBtn.textContent = formatDisplayName(mapName.substring(4)); // nice capitalization
+        tabBtn.setAttribute('data-map', mapName);
         tabBtn.style.padding = '6px 10px';
         tabBtn.style.cursor = 'pointer';
         tabsBar.appendChild(tabBtn);
@@ -350,6 +474,16 @@ function generateMapTabs() {
         right.style.flexDirection = 'column';
         right.style.gap = '10px';
 
+        // map title above encounter type sections (same as tab text)
+        try {
+            const mapTitle = document.createElement('div');
+            mapTitle.style.fontSize = '1.4rem';
+            mapTitle.style.fontWeight = '800';
+            mapTitle.style.marginBottom = '6px';
+            mapTitle.textContent = tabBtn.textContent || formatDisplayName(mapName.substring(4));
+            right.appendChild(mapTitle);
+        } catch (e) { /* ignore */ }
+
         const mapData = maps[mapName];
         for (const groupName of Object.keys(mapData)) {
             const groupBox = document.createElement('div');
@@ -386,8 +520,9 @@ function generateMapTabs() {
                 // click to toggle completed state
                 card.style.cursor = 'pointer';
                 card.addEventListener('click', () => {
-                    const is = card.classList.toggle('completed');
-                    updateCardCompletedStyle(card, is);
+                    // toggle manual caught state and persist
+                    const willBe = !card.classList.contains('completed');
+                    setCaughtStateForCard(card, willBe);
                 });
 
                 const pimg = document.createElement('img');
@@ -454,6 +589,8 @@ function generateMapTabs() {
             tabBtn.click();
         }
     }
+    // apply any locally stored caught state so pre-connection reveals persist
+    try { applyLocalCaughtToUI(); } catch (e) { console.error('applyLocalCaughtToUI failed', e); }
 }
 
 function updateCardCompletedStyle(card, completed) {
@@ -485,8 +622,7 @@ function markSpeciesCompleted(speciesName) {
     if (elements && elements.length) {
         for (const el of elements) {
             if (!el.classList.contains('completed')) {
-                el.classList.add('completed');
-                updateCardCompletedStyle(el, true);
+                setCaughtStateForCard(el, true);
             }
         }
         return;
@@ -498,8 +634,7 @@ function markSpeciesCompleted(speciesName) {
             if (nameKey.includes(key) || key.includes(nameKey)) {
                 for (const el of window.speciesElements[nameKey]) {
                     if (!el.classList.contains('completed')) {
-                        el.classList.add('completed');
-                        updateCardCompletedStyle(el, true);
+                        setCaughtStateForCard(el, true);
                     }
                 }
             }
