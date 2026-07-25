@@ -47,6 +47,15 @@
     }
     .tab-btn.selected { background: rgba(255,255,255,0.26); }
     .tab-circle { width: 12px; height: 12px; border-radius: 50%; background: #777; display: inline-block; margin-right: 8px; flex: 0 0 auto; }
+    .tab-circle.state-gray { background: #6c757d; }
+    .tab-circle.state-red { background: #b02a37; }
+    .tab-circle.state-yellow { background: #f0ad4e; }
+    .tab-circle.state-green { background: #2ea44f; }
+    .group-circle { width: 10px; height: 10px; border-radius: 50%; display:inline-block; margin-right:6px; }
+    .group-circle.state-gray { background: #6c757d; }
+    .group-circle.state-red { background: #b02a37; }
+    .group-circle.state-yellow { background: #f0ad4e; }
+    .group-circle.state-green { background: #2ea44f; }
     .tab-label { vertical-align: middle; }
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -58,6 +67,15 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __commonJSMin = (cb, mod) => () => (mod || (cb((mod = { exports: {} }).exports, mod), cb = null), mod.exports);
+var __exportAll = (all, no_symbols) => {
+	let target = {};
+	for (var name in all) __defProp$1(target, name, {
+		get: all[name],
+		enumerable: true
+	});
+	if (!no_symbols) __defProp$1(target, Symbol.toStringTag, { value: "Module" });
+	return target;
+};
 var __copyProps = (to, from, except, desc) => {
 	if (from && typeof from === "object" || typeof from === "function") for (var keys = __getOwnPropNames(from), i = 0, n = keys.length, key; i < n; i++) {
 		key = keys[i];
@@ -69750,6 +69768,505 @@ var pokemons = [
 	}
 ];
 //#endregion
+//#region tracker/logic.mjs
+var logic_exports = /* @__PURE__ */ __exportAll({
+	BADGES: () => BADGES,
+	GYMS: () => GYMS,
+	RoomLogic: () => RoomLogic,
+	ancient_tomb_access: () => ancient_tomb_access,
+	aqua_hideout_access: () => aqua_hideout_access,
+	artisan_cave_access: () => artisan_cave_access,
+	badges: () => badges,
+	battle_frontier_access: () => battle_frontier_access,
+	bike: () => bike,
+	canUseHM: () => canUseHM,
+	cut: () => cut,
+	desert_ruins_access: () => desert_ruins_access,
+	dewford_access: () => dewford_access,
+	dive: () => dive,
+	e4_access: () => e4_access,
+	ever_grande_encounters: () => ever_grande_encounters,
+	fallarbor_access: () => fallarbor_access,
+	flash: () => flash,
+	fly: () => fly,
+	fortree_access: () => fortree_access,
+	free_fly: () => free_fly,
+	granite_cave_inner_access: () => granite_cave_inner_access,
+	has: () => has,
+	has_e4_req: () => has_e4_req,
+	has_norman_req: () => has_norman_req,
+	hidden: () => hidden,
+	inner_magma_hideout_access: () => inner_magma_hideout_access,
+	island_cave_access: () => island_cave_access,
+	jagged_pass_access: () => jagged_pass_access,
+	lavaridge_access: () => lavaridge_access,
+	lilycove_access: () => lilycove_access,
+	magma_hideout_access: () => magma_hideout_access,
+	marine_cave_access: () => marine_cave_access,
+	mauville_access: () => mauville_access,
+	meteor_falls_1f2r_access: () => meteor_falls_1f2r_access,
+	meteor_falls_access: () => meteor_falls_access,
+	meteor_falls_b1f1r_access: () => meteor_falls_b1f1r_access,
+	meteor_falls_b1f2r_access: () => meteor_falls_b1f2r_access,
+	meteor_falls_steven_room: () => meteor_falls_steven_room,
+	mossdeep_access: () => mossdeep_access,
+	mt_chimney_access: () => mt_chimney_access,
+	mt_pyre_access: () => mt_pyre_access,
+	pass_cable_car: () => pass_cable_car,
+	pass_route_110: () => pass_route_110,
+	pass_route_115: () => pass_route_115,
+	pass_route_118: () => pass_route_118,
+	pass_route_119: () => pass_route_119,
+	pass_route_124: () => pass_route_124,
+	rescue_stern: () => rescue_stern,
+	rock_smash: () => rock_smash,
+	roomLogic: () => roomLogic,
+	route_115_boulders: () => route_115_boulders,
+	route_119_access: () => route_119_access,
+	route_124_access: () => route_124_access,
+	safari_zone_access: () => safari_zone_access,
+	seafloor_cavern_access: () => seafloor_cavern_access,
+	sealed_chamber_access: () => sealed_chamber_access,
+	shoal_cave_access: () => shoal_cave_access,
+	slateport_access: () => slateport_access,
+	sootopolis_access: () => sootopolis_access,
+	strength: () => strength,
+	surf: () => surf,
+	terra_cave_access: () => terra_cave_access,
+	victory_road_access: () => victory_road_access,
+	victory_road_b1f_access: () => victory_road_b1f_access,
+	victory_road_b2f_access: () => victory_road_b2f_access,
+	waterfall: () => waterfall
+});
+/**
+* @type {AP.Client}
+*/
+var BADGES = [
+	"Stone Badge",
+	"Knuckle Badge",
+	"Dynamo Badge",
+	"Heat Badge",
+	"Balance Badge",
+	"Feather Badge",
+	"Mind Badge",
+	"Rain Badge"
+];
+var GYMS = [
+	"defeat_roxanne",
+	"defeat_brawly",
+	"defeat_wattson",
+	"defeat_flannery",
+	"defeat_norman",
+	"defeat_winona",
+	"defeat_tate_and_liza",
+	"defeat_juan"
+];
+function has(item) {
+	if (item == 0) return true;
+	if (item == "defeat_roxanne") return true;
+	else if (item == "defeat_brawly") return dewford_access();
+	else if (item == "defeat_wattson") return mauville_access();
+	else if (item == "defeat_flannery") return lavaridge_access();
+	else if (item == "defeat_norman") return has_norman_req();
+	else if (item == "defeat_winona") return fortree_access() && has("Devon Scope");
+	else if (item == "defeat_tate_and_liza") return mossdeep_access();
+	else if (item == "defeat_juan") return sootopolis_access();
+	else if (item == "deliver_letter") return inner_granite_cave_access() && has("Letter");
+	else if (item == "defeat_champion") return e4_access();
+	if (item.startsWith("free_fly_")) {
+		if (window.freeflyid) {
+			if (item == "free_fly_ever_grande" || item == "free_fly_evergrande") return window.freeflyid === 14;
+			return {
+				0: "littleroot",
+				1: "oldale",
+				2: "petalburg",
+				3: "rustboro",
+				4: "dewford",
+				5: "slateport",
+				6: "mauville",
+				7: "verdanturf",
+				8: "fallarbor",
+				9: "lavaridge",
+				10: "fortree",
+				11: "lilycove",
+				12: "mossdeep",
+				13: "sootopolis",
+				14: "evergrande"
+			}[window.freeflyid] === item.replace("free_fly_", "");
+		}
+	}
+	if (item == "Itemfinder Off") {
+		if (window.ap_client) return !window.ap_client.logData.require_itemfinder;
+	}
+	if (item == "talk_mr_stone") return has("Devon Goods");
+	if (item == "steven_gives_dive") return mossdeep_access() && has("defeat_champion") && has("defeat_shelly");
+	if (window.ap_client) return window.ap_client.items.received.find((x) => x.name == item) !== void 0;
+	return false;
+}
+function free_fly(location) {
+	return has("free_fly_" + location) && fly();
+}
+function canUseHM(hm) {
+	if (window.ap_client) return has(window.ap_client.logData.hm_requirements[hm]);
+}
+function cut() {
+	return has("HM01 Cut") && canUseHM("HM01 Cut");
+}
+function fly() {
+	return has("HM02 Fly") && canUseHM("HM02 Fly");
+}
+function surf() {
+	return has("HM03 Surf") && canUseHM("HM03 Surf");
+}
+function strength() {
+	return has("HM04 Strength") && canUseHM("HM04 Strength");
+}
+function flash() {
+	return has("HM05 Flash") && canUseHM("HM05 Flash");
+}
+function rock_smash() {
+	return has("HM06 Rock Smash") && canUseHM("HM06 Rock Smash");
+}
+function waterfall() {
+	return has("HM07 Waterfall") && canUseHM("HM07 Waterfall");
+}
+function dive() {
+	return has("HM08 Dive") && canUseHM("HM08 Dive");
+}
+function bike() {
+	return has("Acro Bike") || has("Mach Bike");
+}
+function hidden() {
+	return has("Itemfinder") || has("Itemfinder Off");
+}
+function badges() {
+	let count = 0;
+	for (let badge of BADGES) if (has(badge)) count++;
+	return count;
+}
+function has_norman_req() {
+	if (!window.ap_client) return false;
+	let count = 0;
+	let req_type = window.ap_client.logData.norman_requirement;
+	let req_count = window.ap_client.logData.norman_count;
+	if (req_type == 0) {
+		for (let item of BADGES) if (has(item)) count++;
+	}
+	return count >= req_count;
+}
+function has_e4_req() {
+	if (!window.ap_client) return false;
+	let count = 0;
+	let req_type = window.ap_client.logData.e4_requirement;
+	let req_count = window.ap_client.logData.e4_count;
+	if (req_type == 0) {
+		for (let item of BADGES) if (has(item)) count++;
+	}
+	return count >= req_count;
+}
+function rescue_stern() {
+	return false;
+}
+function pass_route_110() {
+	let roadblocks = window.ap_client?.logData?.remove_roadblocks || [];
+	return bike() || roadblocks.includes("Remove Route 110 Aqua Grunts") || rescue_stern();
+}
+function pass_cable_car() {
+	return (window.ap_client?.logData?.remove_roadblocks || []).includes("Remove Route 112 Magma Grunts") || true;
+}
+function route_115_boulders() {
+	return !(window.ap_client?.logData?.extra_boulders || false) || strength();
+}
+function pass_route_115() {
+	let route_115_bumpy_slope_on = window.ap_client?.logData?.extra_bumpy_slope || false;
+	return surf() && route_115_boulders() || route_115_bumpy_slope_on && has("Acro Bike");
+}
+function pass_route_118() {
+	if (window.ap_client?.logData?.modify_118 || false) return has("Acro Bike");
+	return surf();
+}
+function pass_route_119() {
+	return (window.ap_client?.logData?.remove_roadblocks || []).includes("Remove Route 119 Aqua Grunts") || has("defeat_shelly");
+}
+function pass_route_124(direction) {
+	let wailmer_on = !(window.ap_client?.logData?.remove_roadblocks || []).includes("Remove Route 124 Aqua Grunts");
+	if (direction == "left") return surf() && (wailmer_on || has("defeat_matt"));
+	return surf();
+}
+function dewford_access() {
+	return has("talk_mr_stone") || surf();
+}
+function slateport_access() {
+	return free_fly("slateport") || surf() || dewford_access() && has("deliver_letter") || free_fly("mauville") && pass_route_110() || free_fly("verdanturf") && pass_route_110() || rock_smash() && pass_route_110() || free_fly("fortree") && (has("S.S. Ticket") || pass_route_119() && pass_route_118() && pass_route_110()) || free_fly("lilycove") && (has("S.S. Ticket") || cut() && pass_route_119() && pass_route_118() && pass_route_110());
+}
+function mauville_access() {
+	return free_fly("mauville") || free_fly("verdanturf") || rock_smash() || surf() || slateport_access() && pass_route_110() || free_fly("fortree") && pass_route_119() && pass_route_118() || free_fly("lilycove") && cut() && pass_route_119() && pass_route_118();
+}
+function fallarbor_access() {
+	return free_fly("fallarbor") || free_fly("lavaridge") || pass_route_115() || rock_smash();
+}
+function mt_chimney_access() {
+	return fallarbor_access() && pass_cable_car() || free_fly("lavaridge") && has("Acro Bike");
+}
+function lavaridge_access() {
+	return free_fly("lavaridge") || fallarbor_access() && pass_cable_car();
+}
+function route_119_access() {
+	return mauville_access() && pass_route_118() || free_fly("fortree") && (pass_route_119() || surf()) || free_fly("lilycove") && (surf() || cut() && pass_route_119()) || slateport_access() && has("S.S. Ticket") && (surf() || cut() && pass_route_119()) || free_fly("mossdeep") && pass_route_124() || free_fly("sootopolis") && dive() && pass_route_124() || free_fly("evergrande") && pass_route_124();
+}
+function fortree_access() {
+	return free_fly("fortree") || route_119_access() && pass_route_119() || free_fly("lilycove") && cut() || slateport_access() && has("S.S. Ticket") && cut() || free_fly("mossdeep") && pass_route_124() && cut() || free_fly("sootopolis") && dive() && pass_route_124() && cut() || free_fly("ever_grande") && pass_route_124() && cut();
+}
+function lilycove_access() {
+	return free_fly("lilycove") || fortree_access() || slateport_access() && has("S.S. Ticket") || free_fly("mossdeep") && pass_route_124() || free_fly("sootopolis") && dive() && pass_route_124() || free_fly("ever_grande") && pass_route_124();
+}
+function aqua_hideout_access() {
+	return lilycove_access() && surf() && (has("hideout_grunts_on") || has("aqua_steals_submarine"));
+}
+function route_124_access() {
+	return lilycove_access() && pass_route_124("left") || free_fly("mossdeep") && surf() || free_fly("sootopolis") && dive() && surf() || free_fly("ever_grande") && surf();
+}
+function mossdeep_access() {
+	return free_fly("mossdeep") || route_124_access();
+}
+function sootopolis_access() {
+	return free_fly("sootopolis") || route_124_access() && dive();
+}
+function seafloor_cavern_access() {
+	let sea_floor_grunts_on = (window.ap_client?.logData?.remove_roadblocks || []).includes("Remove Seafloor Cavern Aqua Grunt");
+	return route_124_access() && dive() && (sea_floor_grunts_on || has("steven_gives_dive")) && rock_smash() && strength();
+}
+function sealed_chamber_access() {
+	return route_124_access() && dive();
+}
+function desert_ruins_access() {
+	return fallarbor_access() && has("Go Goggles");
+}
+function island_cave_access() {
+	return surf();
+}
+function ancient_tomb_access() {
+	return fortree_access();
+}
+function victory_road_access() {
+	return free_fly("ever_grande") || route_124_access() && waterfall();
+}
+function victory_road_b1f_access() {
+	let flash_req = window.ap_client?.logData?.require_flash || 1;
+	return victory_road_access() && rock_smash() && strength() && (flash_req == 0 || flash());
+}
+function victory_road_b2f_access() {
+	return victory_road_b1f_access();
+}
+function e4_access() {
+	return victory_road_b2f_access() && rock_smash() && strength() && surf() && has_e4_req();
+}
+function battle_frontier_access() {
+	return (slateport_access() || lilycove_access()) && has("S.S. Ticket");
+}
+function terra_cave_access() {
+	return has("defeat_champion") && has("defeat_shelly");
+}
+function marine_cave_access() {
+	return dive() && has("defeat_champion") && has("defeat_shelly");
+}
+function ever_grande_encounters() {
+	return free_fly("ever_grande") && surf() || route_124_access();
+}
+function jagged_pass_access() {
+	return mt_chimney_access() && pass_cable_car() || free_fly("lavaridge") && has("Acro Bike");
+}
+function magma_hideout_access() {
+	return jagged_pass_access() && has("Magma Emblem");
+}
+function inner_magma_hideout_access() {
+	return magma_hideout_access() && strength() && rock_smash();
+}
+function artisan_cave_access() {
+	return battle_frontier_access() && has("Wailmer Pail") && surf();
+}
+function shoal_cave_access() {
+	return surf() && mossdeep_access();
+}
+function granite_cave_inner_access() {
+	let flash_req = window.ap_client?.logData?.require_flash || 1;
+	return dewford_access() && (flash() || flash_req == 0);
+}
+function mt_pyre_access() {
+	return fortree_access() && surf() || lilycove_access() && surf();
+}
+function safari_zone_access() {
+	return lilycove_access() && has("Safari Zone Pass");
+}
+function meteor_falls_access() {
+	return fallarbor_access();
+}
+function meteor_falls_1f2r_access() {
+	return meteor_falls_access() && surf() && waterfall();
+}
+function meteor_falls_b1f1r_access() {
+	return meteor_falls_access() && surf() && waterfall();
+}
+function meteor_falls_b1f2r_access() {
+	return meteor_falls_access() && surf() && waterfall();
+}
+function meteor_falls_steven_room() {
+	return meteor_falls_access() && surf() && waterfall() && has("defeat_champion");
+}
+var RoomLogic = class {
+	constructor(options) {
+		this.defaults = false;
+		if (options && options.bind) this.Base = options.bind(this.Base);
+		else if (options != false && options != true && options != void 0) Object.assign(this, options);
+		else if (options != void 0) this.defaults = options;
+	}
+	Base() {
+		return this.defaults;
+	}
+	Land() {
+		return this.Base();
+	}
+	Water() {
+		return this.Base() && surf();
+	}
+	OldRod() {
+		return this.Base() && has("Old Rod");
+	}
+	GoodRod() {
+		return this.Base() && has("Good Rod");
+	}
+	SuperRod() {
+		return this.Base() && has("Super Rod");
+	}
+	RockSmash() {
+		return this.Base() && rock_smash();
+	}
+};
+var roomLogic = {
+	"MAP_ABANDONED_SHIP_HIDDEN_FLOOR_CORRIDORS": new RoomLogic(() => surf() && dive()),
+	"MAP_ABANDONED_SHIP_ROOMS_B1F": new RoomLogic(surf),
+	"MAP_ARTISAN_CAVE_1F": new RoomLogic(artisan_cave_access),
+	"MAP_ARTISAN_CAVE_B1F": new RoomLogic(artisan_cave_access),
+	"MAP_CAVE_OF_ORIGIN_1F": new RoomLogic(sootopolis_access),
+	"MAP_CAVE_OF_ORIGIN_ENTRANCE": new RoomLogic(sootopolis_access),
+	"MAP_DESERT_UNDERPASS": new RoomLogic(desert_ruins_access),
+	"MAP_DEWFORD_TOWN": new RoomLogic(dewford_access),
+	"MAP_EVER_GRANDE_CITY": new RoomLogic(ever_grande_encounters),
+	"MAP_FIERY_PATH": new RoomLogic(() => fallarbor_access() || mauville_access() && rock_smash()),
+	"MAP_GRANITE_CAVE_1F": new RoomLogic(dewford_access),
+	"MAP_GRANITE_CAVE_B1F": new RoomLogic(granite_cave_inner_access),
+	"MAP_GRANITE_CAVE_B2F": new RoomLogic(granite_cave_inner_access),
+	"MAP_GRANITE_CAVE_STEVENS_ROOM": new RoomLogic(granite_cave_inner_access),
+	"MAP_JAGGED_PASS": new RoomLogic(jagged_pass_access),
+	"MAP_LILYCOVE_CITY": new RoomLogic(lilycove_access),
+	"MAP_ROUTE101": new RoomLogic(true),
+	"MAP_ROUTE102": new RoomLogic(true),
+	"MAP_ROUTE103": new RoomLogic(true),
+	"MAP_ROUTE104": new RoomLogic(true),
+	"MAP_ROUTE105": new RoomLogic(surf),
+	"MAP_ROUTE106": new RoomLogic(surf),
+	"MAP_ROUTE107": new RoomLogic(surf),
+	"MAP_ROUTE108": new RoomLogic(surf),
+	"MAP_ROUTE109": new RoomLogic(surf),
+	"MAP_ROUTE110": new RoomLogic(() => mauville_access() || slateport_access()),
+	"MAP_ROUTE111": new RoomLogic({
+		Land: () => mauville_access() && (surf() || rock_smash()) || fallarbor_access(),
+		Base: () => mauville_access() || fallarbor_access(),
+		Water: () => surf() && mauville_access(),
+		OldRod: () => has("Old Rod") && mauville_access(),
+		GoodRod: () => has("Good Rod") && mauville_access(),
+		SuperRod: () => has("Super Rod") && mauville_access()
+	}),
+	"MAP_ROUTE112": new RoomLogic(() => fallarbor_access() || mauville_access() && rock_smash()),
+	"MAP_ROUTE113": new RoomLogic(fallarbor_access),
+	"MAP_ROUTE114": new RoomLogic(fallarbor_access),
+	"MAP_ROUTE115": new RoomLogic({
+		Land: surf,
+		Base: () => true
+	}),
+	"MAP_ROUTE116": new RoomLogic(true),
+	"MAP_ROUTE117": new RoomLogic(mauville_access),
+	"MAP_ROUTE118": new RoomLogic(() => mauville_access() || fortree_access()),
+	"MAP_ROUTE119": new RoomLogic(fortree_access),
+	"MAP_ROUTE120": new RoomLogic(fortree_access),
+	"MAP_ROUTE121": new RoomLogic(() => fortree_access() || lilycove_access()),
+	"MAP_ROUTE122": new RoomLogic(() => lilycove_access() && surf()),
+	"MAP_ROUTE123": new RoomLogic(() => lilycove_access() && surf()),
+	"MAP_ROUTE124": new RoomLogic(route_124_access),
+	"MAP_ROUTE125": new RoomLogic(route_124_access),
+	"MAP_ROUTE126": new RoomLogic(route_124_access),
+	"MAP_ROUTE127": new RoomLogic(route_124_access),
+	"MAP_ROUTE128": new RoomLogic(route_124_access),
+	"MAP_ROUTE129": new RoomLogic(route_124_access),
+	"MAP_ROUTE130": new RoomLogic(route_124_access),
+	"MAP_ROUTE131": new RoomLogic(route_124_access),
+	"MAP_ROUTE132": new RoomLogic(route_124_access),
+	"MAP_ROUTE133": new RoomLogic(route_124_access),
+	"MAP_ROUTE134": new RoomLogic(route_124_access),
+	"MAP_MAGMA_HIDEOUT_1F": new RoomLogic(magma_hideout_access),
+	"MAP_MAGMA_HIDEOUT_2F_1R": new RoomLogic(inner_magma_hideout_access),
+	"MAP_MAGMA_HIDEOUT_2F_2R": new RoomLogic(inner_magma_hideout_access),
+	"MAP_MAGMA_HIDEOUT_2F_3R": new RoomLogic(inner_magma_hideout_access),
+	"MAP_MAGMA_HIDEOUT_3F_1R": new RoomLogic(inner_magma_hideout_access),
+	"MAP_MAGMA_HIDEOUT_3F_2R": new RoomLogic(inner_magma_hideout_access),
+	"MAP_MAGMA_HIDEOUT_3F_3R": new RoomLogic(inner_magma_hideout_access),
+	"MAP_MAGMA_HIDEOUT_4F": new RoomLogic(inner_magma_hideout_access),
+	"MAP_METEOR_FALLS_1F_1R": new RoomLogic(meteor_falls_access),
+	"MAP_METEOR_FALLS_1F_2R": new RoomLogic(meteor_falls_1f2r_access),
+	"MAP_METEOR_FALLS_B1F_1R": new RoomLogic(meteor_falls_b1f1r_access),
+	"MAP_METEOR_FALLS_B1F_2R": new RoomLogic(meteor_falls_b1f2r_access),
+	"MAP_METEOR_FALLS_STEVENS_CAVE": new RoomLogic(meteor_falls_steven_room),
+	"MAP_MIRAGE_TOWER_1F": new RoomLogic(desert_ruins_access),
+	"MAP_MIRAGE_TOWER_2F": new RoomLogic(desert_ruins_access),
+	"MAP_MIRAGE_TOWER_3F": new RoomLogic(desert_ruins_access),
+	"MAP_MIRAGE_TOWER_4F": new RoomLogic(desert_ruins_access),
+	"MAP_MOSSDEEP_CITY": new RoomLogic(mossdeep_access),
+	"MAP_MT_PYRE_1F": new RoomLogic(mt_pyre_access),
+	"MAP_MT_PYRE_2F": new RoomLogic(mt_pyre_access),
+	"MAP_MT_PYRE_3F": new RoomLogic(mt_pyre_access),
+	"MAP_MT_PYRE_4F": new RoomLogic(mt_pyre_access),
+	"MAP_MT_PYRE_5F": new RoomLogic(mt_pyre_access),
+	"MAP_MT_PYRE_6F": new RoomLogic(mt_pyre_access),
+	"MAP_MT_PYRE_EXTERIOR": new RoomLogic(mt_pyre_access),
+	"MAP_MT_PYRE_SUMMIT": new RoomLogic(mt_pyre_access),
+	"MAP_NEW_MAUVILLE_ENTRANCE": new RoomLogic(() => mauville_access() && surf()),
+	"MAP_NEW_MAUVILLE_INSIDE": new RoomLogic(() => mauville_access() && surf() && has("Basement Key")),
+	"MAP_PACIFIDLOG_TOWN": new RoomLogic(route_124_access),
+	"MAP_PETALBURG_CITY": new RoomLogic(true),
+	"MAP_PETALBURG_WOODS": new RoomLogic(true),
+	"MAP_RUSTURF_TUNNEL": new RoomLogic(true),
+	"MAP_SAFARI_ZONE_NORTH": new RoomLogic(() => safari_zone_access() && has("Acro Bike")),
+	"MAP_SAFARI_ZONE_NORTHEAST": new RoomLogic(safari_zone_access),
+	"MAP_SAFARI_ZONE_NORTHWEST": new RoomLogic(() => safari_zone_access() && has("Mach Bike")),
+	"MAP_SAFARI_ZONE_SOUTH": new RoomLogic(safari_zone_access),
+	"MAP_SAFARI_ZONE_SOUTHEAST": new RoomLogic(safari_zone_access),
+	"MAP_SAFARI_ZONE_SOUTHWEST": new RoomLogic(safari_zone_access),
+	"MAP_SEAFLOOR_CAVERN_ENTRANCE": new RoomLogic(seafloor_cavern_access),
+	"MAP_SEAFLOOR_CAVERN_ROOM1": new RoomLogic(seafloor_cavern_access),
+	"MAP_SEAFLOOR_CAVERN_ROOM2": new RoomLogic(seafloor_cavern_access),
+	"MAP_SEAFLOOR_CAVERN_ROOM3": new RoomLogic(seafloor_cavern_access),
+	"MAP_SEAFLOOR_CAVERN_ROOM4": new RoomLogic(seafloor_cavern_access),
+	"MAP_SEAFLOOR_CAVERN_ROOM5": new RoomLogic(seafloor_cavern_access),
+	"MAP_SEAFLOOR_CAVERN_ROOM6": new RoomLogic(seafloor_cavern_access),
+	"MAP_SEAFLOOR_CAVERN_ROOM7": new RoomLogic(seafloor_cavern_access),
+	"MAP_SEAFLOOR_CAVERN_ROOM8": new RoomLogic(seafloor_cavern_access),
+	"MAP_SHOAL_CAVE_LOW_TIDE_ENTRANCE_ROOM": new RoomLogic(shoal_cave_access),
+	"MAP_SHOAL_CAVE_LOW_TIDE_ICE_ROOM": new RoomLogic(shoal_cave_access),
+	"MAP_SHOAL_CAVE_LOW_TIDE_INNER_ROOM": new RoomLogic(shoal_cave_access),
+	"MAP_SHOAL_CAVE_LOW_TIDE_LOWER_ROOM": new RoomLogic(shoal_cave_access),
+	"MAP_SHOAL_CAVE_LOW_TIDE_STAIRS_ROOM": new RoomLogic(shoal_cave_access),
+	"MAP_SLATEPORT_CITY": new RoomLogic(slateport_access),
+	"MAP_SOOTOPOLIS_CITY": new RoomLogic(sootopolis_access),
+	"MAP_UNDERWATER_ROUTE124": new RoomLogic(() => route_124_access() && dive()),
+	"MAP_UNDERWATER_ROUTE126": new RoomLogic(() => route_124_access() && dive()),
+	"MAP_SKY_PILLAR_1F": new RoomLogic(route_124_access),
+	"MAP_SKY_PILLAR_3F": new RoomLogic(route_124_access),
+	"MAP_SKY_PILLAR_5F": new RoomLogic(route_124_access),
+	"MAP_VICTORY_ROAD_1F": new RoomLogic(victory_road_access),
+	"MAP_VICTORY_ROAD_B1F": new RoomLogic(victory_road_b1f_access),
+	"MAP_VICTORY_ROAD_B2F": new RoomLogic(victory_road_b2f_access)
+};
+//#endregion
 //#region tracker/tracker.mjs
 var configStorageKey = "ap_tracker_config";
 var mapsStoragePrefix = "ap_tracker_maps_v1::";
@@ -69991,9 +70508,10 @@ function extractPokemonPerMap(tokens) {
 			let percentages = {};
 			for (let species in counts) {
 				const speciesName = speciesNameMap[species] || species;
+				const id = pokemons.find((x) => x.name.toUpperCase() === speciesName.toUpperCase())?.number || "-" + species;
 				percentages[speciesName] = {
 					probability: counts[species] / total * 100,
-					id: species,
+					id,
 					name: speciesName
 				};
 			}
@@ -70065,6 +70583,9 @@ function setCaughtStateForCard(card, state) {
 			if (card.classList.contains("completed")) card.classList.remove("completed");
 			updateCardCompletedStyle(card, false);
 		}
+		try {
+			refreshAllTabCircles();
+		} catch (e) {}
 	} catch (e) {
 		console.error("setCaughtStateForCard error", e);
 	}
@@ -70087,6 +70608,9 @@ function setCaughtStateForSpecies(speciesId, state) {
 			window.caught[n] = !!state;
 			saveCaughtToStorage();
 		}
+		try {
+			refreshAllTabCircles();
+		} catch (e) {}
 	} catch (e) {
 		console.error("setCaughtStateForSpecies error", e);
 	}
@@ -70125,6 +70649,7 @@ function openFilePicker(optionsCallback) {
 				options.tokenData = content;
 				options.tokens = await decodeTokenData(content);
 				window.maps = extractPokemonPerMap(options.tokens);
+				window.freeflyid = options.tokens.find((t) => t.name === "Free Fly Location")?.value || null;
 				if (window.maps && Object.keys(window.maps).length > 0) {
 					const applyBtn = document.getElementById("applyConfigBtn");
 					if (applyBtn) applyBtn.disabled = false;
@@ -70207,6 +70732,7 @@ function generateMapTabs() {
 	contentArea.className = "maps-content";
 	container.appendChild(contentArea);
 	let first = true;
+	let firstTab = null;
 	for (const mapName of Object.keys(maps)) {
 		const tabBtn = document.createElement("button");
 		tabBtn.className = "tab-btn";
@@ -70221,6 +70747,8 @@ function generateMapTabs() {
 		tabBtn.appendChild(label);
 		tabsBar.appendChild(tabBtn);
 		const mapDiv = document.createElement("div");
+		mapDiv.className = "map-div";
+		mapDiv.dataset.map = mapName;
 		mapDiv.style.display = "none";
 		mapDiv.style.width = "100%";
 		mapDiv.style.minHeight = "calc(100vh - 60px)";
@@ -70263,9 +70791,20 @@ function generateMapTabs() {
 			groupBox.style.padding = "8px";
 			groupBox.style.background = "rgba(255,255,255,0.02)";
 			const header = document.createElement("div");
-			header.textContent = groupName;
-			header.style.fontWeight = "700";
-			header.style.marginBottom = "6px";
+			header.className = "group-header";
+			header.dataset.group = groupName;
+			header.style.display = "flex";
+			header.style.alignItems = "center";
+			header.style.gap = "8px";
+			const groupCircle = document.createElement("span");
+			groupCircle.className = "group-circle";
+			groupCircle.dataset.group = groupName;
+			header.appendChild(groupCircle);
+			const headerText = document.createElement("div");
+			headerText.textContent = groupName;
+			headerText.style.fontWeight = "700";
+			headerText.style.marginBottom = "6px";
+			header.appendChild(headerText);
 			groupBox.appendChild(header);
 			const speciesWrap = document.createElement("div");
 			speciesWrap.style.display = "flex";
@@ -70347,6 +70886,15 @@ function generateMapTabs() {
 					tabsBar.scrollLeft = desired;
 				}
 			} catch (e) {}
+			try {
+				const hash = encodeURIComponent(mapName);
+				if (history && typeof history.replaceState === "function") history.replaceState(null, "", "#" + hash);
+				else location.hash = hash;
+			} catch (e) {
+				try {
+					location.hash = encodeURIComponent(mapName);
+				} catch (ee) {}
+			}
 			for (const ch of contentArea.children) ch.style.display = "none";
 			mapDiv.style.display = "block";
 		};
@@ -70355,7 +70903,7 @@ function generateMapTabs() {
 		});
 		if (first) {
 			first = false;
-			tabBtn.click();
+			firstTab = tabBtn;
 		}
 	}
 	try {
@@ -70363,6 +70911,20 @@ function generateMapTabs() {
 	} catch (e) {
 		console.error("applyLocalCaughtToUI failed", e);
 	}
+	try {
+		const hash = (location.hash || "").replace(/^#/, "");
+		const decoded = hash ? decodeURIComponent(hash) : null;
+		if (decoded) {
+			const target = tabsBar.querySelector(`.tab-btn[data-map="${decoded}"]`);
+			if (target) target.click();
+			else if (firstTab) firstTab.click();
+		} else if (firstTab) firstTab.click();
+	} catch (e) {
+		if (firstTab) firstTab.click();
+	}
+	try {
+		refreshAllTabCircles();
+	} catch (e) {}
 }
 function updateCardCompletedStyle(card, completed) {
 	try {
@@ -70381,6 +70943,187 @@ function updateCardCompletedStyle(card, completed) {
 		}
 	} catch (e) {
 		console.error("updateCardCompletedStyle error", e);
+	}
+}
+function colorStateForMap(mapName) {
+	try {
+		const mapData = (window.maps || {})[mapName];
+		if (!mapData) return "gray";
+		const caught = window.caught || [];
+		const allowedGroups = {
+			"Land": "Land",
+			"Water": "Water",
+			"Old Rod": "OldRod",
+			"Good Rod": "GoodRod",
+			"Super Rod": "SuperRod",
+			"Rock Smash": "RockSmash"
+		};
+		function groupIsAccessible(mapNameLocal, groupName) {
+			try {
+				const method = allowedGroups[groupName];
+				if (!method) return false;
+				const rl = logic_exports && roomLogic ? roomLogic[mapNameLocal] : null;
+				if (!rl) return false;
+				if (typeof rl[method] === "function") try {
+					return !!rl[method]();
+				} catch (e) {
+					return false;
+				}
+				return false;
+			} catch (e) {
+				return false;
+			}
+		}
+		let anySpecies = false;
+		let anyUncaught = false;
+		let anyUncaughtCatchable = false;
+		let anyUncaughtUncatchable = false;
+		for (const groupNameRaw of Object.keys(mapData)) {
+			if (!Object.prototype.hasOwnProperty.call(allowedGroups, groupNameRaw)) continue;
+			const speciesObj = mapData[groupNameRaw] || {};
+			const accessible = groupIsAccessible(mapName, groupNameRaw);
+			for (const speciesName of Object.keys(speciesObj)) {
+				anySpecies = true;
+				const spec = speciesObj[speciesName] || {};
+				const id = spec.id ?? speciesName;
+				let isCaught = false;
+				const n = parseInt(id, 10);
+				if (!Number.isNaN(n) && n > 0) isCaught = !!caught[n];
+				else {
+					const keyName = String(spec.name || speciesName).toUpperCase();
+					const keyId = String(id).toUpperCase();
+					const elsByName = window.speciesElements && window.speciesElements[keyName] || [];
+					const elsById = window.speciesElements && window.speciesElements[keyId] || [];
+					const combined = elsByName.concat(elsById);
+					if (!combined || combined.length === 0) isCaught = false;
+					else for (const el of combined) if (el.classList && el.classList.contains("completed")) {
+						isCaught = true;
+						break;
+					}
+				}
+				if (!isCaught) {
+					anyUncaught = true;
+					if (accessible) anyUncaughtCatchable = true;
+					else anyUncaughtUncatchable = true;
+				}
+			}
+		}
+		if (!anySpecies) return "gray";
+		if (!anyUncaught) return "gray";
+		if (!anyUncaughtCatchable && anyUncaughtUncatchable) return "red";
+		if (anyUncaughtCatchable && !anyUncaughtUncatchable) return "green";
+		return "yellow";
+	} catch (e) {
+		console.error("colorStateForMap error", e);
+		return "gray";
+	}
+}
+function refreshAllTabCircles() {
+	try {
+		const tabs = document.querySelectorAll("#mapsContainer .tab-btn");
+		if (!tabs || tabs.length === 0) return;
+		for (const btn of tabs) {
+			const mapName = btn.getAttribute("data-map");
+			const circle = btn.querySelector(".tab-circle");
+			if (!circle) continue;
+			const state = colorStateForMap(mapName);
+			circle.classList.remove("state-gray", "state-red", "state-yellow", "state-green");
+			circle.classList.add("state-" + state);
+			const colorMap = {
+				gray: "#6c757d",
+				red: "#b02a37",
+				yellow: "#f0ad4e",
+				green: "#2ea44f"
+			};
+			circle.style.background = colorMap[state] || "#777";
+		}
+	} catch (e) {
+		console.error("refreshAllTabCircles error", e);
+	}
+	try {
+		refreshGroupCircles();
+	} catch (e) {}
+}
+function colorStateForGroup(mapName, groupName) {
+	try {
+		const mapData = (window.maps || {})[mapName];
+		if (!mapData) return "gray";
+		const groupObj = mapData[groupName] || {};
+		const caught = window.caught || [];
+		const method = {
+			"Land": "Land",
+			"Water": "Water",
+			"Old Rod": "OldRod",
+			"Good Rod": "GoodRod",
+			"Super Rod": "SuperRod",
+			"Rock Smash": "RockSmash"
+		}[groupName];
+		const rl = logic_exports && roomLogic ? roomLogic[mapName] : null;
+		const accessible = rl && method && typeof rl[method] === "function" ? !!rl[method]() : false;
+		let anySpecies = false;
+		let anyUncaught = false;
+		let anyUncaughtCatchable = false;
+		let anyUncaughtUncatchable = false;
+		for (const speciesName of Object.keys(groupObj)) {
+			anySpecies = true;
+			const spec = groupObj[speciesName] || {};
+			const id = spec.id ?? speciesName;
+			let isCaught = false;
+			const n = parseInt(id, 10);
+			if (!Number.isNaN(n) && n > 0) isCaught = !!caught[n];
+			else {
+				const keyName = String(spec.name || speciesName).toUpperCase();
+				const keyId = String(id).toUpperCase();
+				const elsByName = window.speciesElements && window.speciesElements[keyName] || [];
+				const elsById = window.speciesElements && window.speciesElements[keyId] || [];
+				const combined = elsByName.concat(elsById);
+				if (!combined || combined.length === 0) isCaught = false;
+				else for (const el of combined) if (el.classList && el.classList.contains("completed")) {
+					isCaught = true;
+					break;
+				}
+			}
+			if (!isCaught) {
+				anyUncaught = true;
+				if (accessible) anyUncaughtCatchable = true;
+				else anyUncaughtUncatchable = true;
+			}
+		}
+		if (!anySpecies) return "gray";
+		if (!anyUncaught) return "gray";
+		if (!anyUncaughtCatchable && anyUncaughtUncatchable) return "red";
+		if (anyUncaughtCatchable && !anyUncaughtUncatchable) return "green";
+		return "yellow";
+	} catch (e) {
+		console.error("colorStateForGroup error", e);
+		return "gray";
+	}
+}
+function refreshGroupCircles() {
+	try {
+		const mapDivs = document.querySelectorAll("#mapsContainer .map-div");
+		if (!mapDivs) return;
+		for (const mdiv of mapDivs) {
+			const mapName = mdiv.dataset.map;
+			const headers = mdiv.querySelectorAll(".group-header");
+			for (const h of headers) {
+				const g = h.dataset.group;
+				const circle = h.querySelector(".group-circle");
+				if (!circle) continue;
+				const state = colorStateForGroup(mapName, g);
+				circle.classList.remove("state-gray", "state-red", "state-yellow", "state-green");
+				circle.classList.add("state-" + state);
+				const colorMap = {
+					gray: "#6c757d",
+					red: "#b02a37",
+					yellow: "#f0ad4e",
+					green: "#2ea44f"
+				};
+				circle.style.background = colorMap[state] || "#777";
+			}
+		}
+	} catch (e) {
+		console.error("refreshGroupCircles error", e);
 	}
 }
 function markSpeciesCompleted(speciesName) {
@@ -70408,6 +71151,9 @@ function revealSpeciesById(speciesId) {
 			updateCardCompletedStyle(el, true);
 		}
 	}
+	try {
+		refreshAllTabCircles();
+	} catch (e) {}
 }
 function startCaughtPolling() {
 	if (window._caughtPollIntervalId) return;

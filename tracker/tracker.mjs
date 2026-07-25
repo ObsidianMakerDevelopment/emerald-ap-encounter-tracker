@@ -4,6 +4,8 @@ import { decodeTokenData } from "./tokensDecoder.mjs";
 import { emerald_data } from "./data.mjs"
 import { tabMapping, imgMapping } from "./tab_mapping.mjs"
 import { pokemons } from "./mons.mjs"
+import * as logic from "./logic.mjs"
+
 // Minimal tracker bootstrap with Archipelago login/config UI
 const configStorageKey = "ap_tracker_config";
 const mapsStoragePrefix = "ap_tracker_maps_v1::";
@@ -21,7 +23,6 @@ function saveMapsToStorage(username, maps) {
         console.error('Failed to save maps to storage', e);
     }
 }
-
 function loadMapsFromStorage(username) {
     try {
         const key = mapsStorageKeyFor(username);
@@ -249,7 +250,8 @@ function extractPokemonPerMap(tokens) {
             let percentages = {};
             for (let species in counts) {
                 const speciesName = speciesNameMap[species] || species;
-                percentages[speciesName] = { probability: (counts[species] / total) * 100, id: species, name: speciesName };
+                const id = pokemons.find(x => x.name.toUpperCase() === speciesName.toUpperCase())?.number || "-"+species;
+                percentages[speciesName] = { probability: (counts[species] / total) * 100, id: id, name: speciesName };
             }
             result[mapKey][encounterType] = percentages;
         }
@@ -329,6 +331,7 @@ function setCaughtStateForCard(card, state) {
             if (card.classList.contains('completed')) card.classList.remove('completed');
             updateCardCompletedStyle(card, false);
         }
+        try { refreshAllTabCircles(); } catch (e) {}
     } catch (e) { console.error('setCaughtStateForCard error', e); }
 }
 
@@ -353,6 +356,7 @@ function setCaughtStateForSpecies(speciesId, state) {
             window.caught[n] = !!state;
             saveCaughtToStorage();
         }
+        try { refreshAllTabCircles(); } catch (e) {}
     } catch (e) { console.error('setCaughtStateForSpecies error', e); }
 }
 
@@ -400,6 +404,8 @@ function openFilePicker(optionsCallback) {
                 //console.log("Decoded tokens:", options.tokens);
 
                 window.maps = extractPokemonPerMap(options.tokens);
+
+                window.freeflyid = options.tokens.find(t => t.name === "Free Fly Location")?.value || null;
                 // enable Apply button when maps are present
                 if (window.maps && Object.keys(window.maps).length > 0) {
                     const applyBtn = document.getElementById('applyConfigBtn');
@@ -505,6 +511,7 @@ function generateMapTabs() {
     container.appendChild(contentArea);
 
     let first = true;
+    let firstTab = null;
     for (const mapName of Object.keys(maps)) {
         const tabBtn = document.createElement('button');
         tabBtn.className = 'tab-btn';
@@ -525,6 +532,8 @@ function generateMapTabs() {
         tabsBar.appendChild(tabBtn);
 
         const mapDiv = document.createElement('div');
+        mapDiv.className = 'map-div';
+        mapDiv.dataset.map = mapName;
         mapDiv.style.display = 'none';
         mapDiv.style.width = '100%';
         mapDiv.style.minHeight = 'calc(100vh - 60px)';
@@ -576,9 +585,20 @@ function generateMapTabs() {
             groupBox.style.background = 'rgba(255,255,255,0.02)';
 
             const header = document.createElement('div');
-            header.textContent = groupName;
-            header.style.fontWeight = '700';
-            header.style.marginBottom = '6px';
+            header.className = 'group-header';
+            header.dataset.group = groupName;
+            header.style.display = 'flex';
+            header.style.alignItems = 'center';
+            header.style.gap = '8px';
+            const groupCircle = document.createElement('span');
+            groupCircle.className = 'group-circle';
+            groupCircle.dataset.group = groupName;
+            header.appendChild(groupCircle);
+            const headerText = document.createElement('div');
+            headerText.textContent = groupName;
+            headerText.style.fontWeight = '700';
+            headerText.style.marginBottom = '6px';
+            header.appendChild(headerText);
             groupBox.appendChild(header);
 
             const speciesWrap = document.createElement('div');
@@ -683,6 +703,13 @@ function generateMapTabs() {
                 try { tabsBar.scrollTo({ left: desired, behavior: 'smooth' }); } catch (e) { tabsBar.scrollLeft = desired; }
             } catch (e) { /* ignore scrolling errors */ }
 
+            // set hash so reload restores this tab
+            try {
+                const hash = encodeURIComponent(mapName);
+                if (history && typeof history.replaceState === 'function') history.replaceState(null, '', '#' + hash);
+                else location.hash = hash;
+            } catch (e) { try { location.hash = encodeURIComponent(mapName); } catch (ee) {} }
+
             // hide other mapDivs
             for (const ch of contentArea.children) ch.style.display = 'none';
             mapDiv.style.display = 'block';
@@ -693,11 +720,29 @@ function generateMapTabs() {
 
         if (first) {
             first = false;
-            tabBtn.click();
+            firstTab = tabBtn;
         }
     }
     // apply any locally stored caught state so pre-connection reveals persist
     try { applyLocalCaughtToUI(); } catch (e) { console.error('applyLocalCaughtToUI failed', e); }
+
+    // choose initial tab: prefer hash, otherwise first tab
+    try {
+        const hash = (location.hash || '').replace(/^#/, '');
+        const decoded = hash ? decodeURIComponent(hash) : null;
+        if (decoded) {
+            const target = tabsBar.querySelector(`.tab-btn[data-map="${decoded}"]`);
+            if (target) target.click();
+            else if (firstTab) firstTab.click();
+        } else if (firstTab) {
+            firstTab.click();
+        }
+    } catch (e) {
+        if (firstTab) firstTab.click();
+    }
+
+    // refresh tab circles to reflect caught state
+    try { refreshAllTabCircles(); } catch (e) { /* ignore */ }
 }
 
 function updateCardCompletedStyle(card, completed) {
@@ -719,6 +764,186 @@ function updateCardCompletedStyle(card, completed) {
     } catch (e) {
         console.error('updateCardCompletedStyle error', e);
     }
+}
+
+// Determine a state for a map's tab-circle based on encounters and reachability.
+// Returns: 'gray' (all caught), 'red' (none catchable, some missing),
+// 'green' (all missing are catchable), 'yellow' (mix of catchable/not).
+function colorStateForMap(mapName) {
+    try {
+        const maps = window.maps || {};
+        const mapData = maps[mapName];
+        if (!mapData) return 'gray';
+        const caught = window.caught || [];
+
+        const allowedGroups = {
+            'Land': 'Land',
+            'Water': 'Water',
+            'Old Rod': 'OldRod',
+            'Good Rod': 'GoodRod',
+            'Super Rod': 'SuperRod',
+            'Rock Smash': 'RockSmash'
+        };
+
+        function groupIsAccessible(mapNameLocal, groupName) {
+            try {
+                const method = allowedGroups[groupName];
+                if (!method) return false;
+                const rl = (logic && logic.roomLogic) ? logic.roomLogic[mapNameLocal] : null;
+                if (!rl) return false;
+                if (typeof rl[method] === 'function') {
+                    try { return !!rl[method](); } catch (e) { return false; }
+                }
+                return false;
+            } catch (e) { return false; }
+        }
+
+        let anySpecies = false;
+        let anyUncaught = false;
+        let anyUncaughtCatchable = false;
+        let anyUncaughtUncatchable = false;
+
+        for (const groupNameRaw of Object.keys(mapData)) {
+            if (!Object.prototype.hasOwnProperty.call(allowedGroups, groupNameRaw)) continue;
+            const speciesObj = mapData[groupNameRaw] || {};
+            const accessible = groupIsAccessible(mapName, groupNameRaw);
+            for (const speciesName of Object.keys(speciesObj)) {
+                anySpecies = true;
+                const spec = speciesObj[speciesName] || {};
+                const id = spec.id ?? speciesName;
+                let isCaught = false;
+                const n = parseInt(id, 10);
+                if (!Number.isNaN(n) && n > 0) {
+                    isCaught = !!caught[n];
+                } else {
+                    const keyName = String(spec.name || speciesName).toUpperCase();
+                    const keyId = String(id).toUpperCase();
+                    const elsByName = (window.speciesElements && window.speciesElements[keyName]) || [];
+                    const elsById = (window.speciesElements && window.speciesElements[keyId]) || [];
+                    const combined = elsByName.concat(elsById);
+                    if (!combined || combined.length === 0) {
+                        isCaught = false;
+                    } else {
+                        for (const el of combined) {
+                            if (el.classList && el.classList.contains('completed')) { isCaught = true; break; }
+                        }
+                    }
+                }
+                if (!isCaught) {
+                    anyUncaught = true;
+                    if (accessible) anyUncaughtCatchable = true;
+                    else anyUncaughtUncatchable = true;
+                }
+            }
+        }
+
+        if (!anySpecies) return 'gray';
+        if (!anyUncaught) return 'gray';
+        if (!anyUncaughtCatchable && anyUncaughtUncatchable) return 'red';
+        if (anyUncaughtCatchable && !anyUncaughtUncatchable) return 'green';
+        return 'yellow';
+    } catch (e) {
+        console.error('colorStateForMap error', e);
+        return 'gray';
+    }
+}
+
+// Refresh the color/state of all tab circles based on caught progress
+function refreshAllTabCircles() {
+    try {
+        const tabs = document.querySelectorAll('#mapsContainer .tab-btn');
+        if (!tabs || tabs.length === 0) return;
+        for (const btn of tabs) {
+            const mapName = btn.getAttribute('data-map');
+            const circle = btn.querySelector('.tab-circle');
+            if (!circle) continue;
+            const state = colorStateForMap(mapName);
+            circle.classList.remove('state-gray', 'state-red', 'state-yellow', 'state-green');
+            circle.classList.add('state-' + state);
+            // fallback inline color for older styling
+            const colorMap = { gray: '#6c757d', red: '#b02a37', yellow: '#f0ad4e', green: '#2ea44f' };
+            circle.style.background = colorMap[state] || '#777';
+        }
+    } catch (e) { console.error('refreshAllTabCircles error', e); }
+    try { refreshGroupCircles(); } catch (e) {}
+}
+
+// Compute color/state for a specific group in a map
+function colorStateForGroup(mapName, groupName) {
+    try {
+        const maps = window.maps || {};
+        const mapData = maps[mapName];
+        if (!mapData) return 'gray';
+        const groupObj = mapData[groupName] || {};
+        const caught = window.caught || [];
+        const allowedGroups = {
+            'Land': 'Land',
+            'Water': 'Water',
+            'Old Rod': 'OldRod',
+            'Good Rod': 'GoodRod',
+            'Super Rod': 'SuperRod',
+            'Rock Smash': 'RockSmash'
+        };
+        const method = allowedGroups[groupName];
+        const rl = (logic && logic.roomLogic) ? logic.roomLogic[mapName] : null;
+        const accessible = rl && method && typeof rl[method] === 'function' ? !!rl[method]() : false;
+
+        let anySpecies = false;
+        let anyUncaught = false;
+        let anyUncaughtCatchable = false;
+        let anyUncaughtUncatchable = false;
+
+        for (const speciesName of Object.keys(groupObj)) {
+            anySpecies = true;
+            const spec = groupObj[speciesName] || {};
+            const id = spec.id ?? speciesName;
+            let isCaught = false;
+            const n = parseInt(id, 10);
+            if (!Number.isNaN(n) && n > 0) {
+                isCaught = !!caught[n];
+            } else {
+                const keyName = String(spec.name || speciesName).toUpperCase();
+                const keyId = String(id).toUpperCase();
+                const elsByName = (window.speciesElements && window.speciesElements[keyName]) || [];
+                const elsById = (window.speciesElements && window.speciesElements[keyId]) || [];
+                const combined = elsByName.concat(elsById);
+                if (!combined || combined.length === 0) isCaught = false;
+                else {
+                    for (const el of combined) { if (el.classList && el.classList.contains('completed')) { isCaught = true; break; } }
+                }
+            }
+            if (!isCaught) {
+                anyUncaught = true;
+                if (accessible) anyUncaughtCatchable = true; else anyUncaughtUncatchable = true;
+            }
+        }
+        if (!anySpecies) return 'gray';
+        if (!anyUncaught) return 'gray';
+        if (!anyUncaughtCatchable && anyUncaughtUncatchable) return 'red';
+        if (anyUncaughtCatchable && !anyUncaughtUncatchable) return 'green';
+        return 'yellow';
+    } catch (e) { console.error('colorStateForGroup error', e); return 'gray'; }
+}
+
+function refreshGroupCircles() {
+    try {
+        const mapDivs = document.querySelectorAll('#mapsContainer .map-div');
+        if (!mapDivs) return;
+        for (const mdiv of mapDivs) {
+            const mapName = mdiv.dataset.map;
+            const headers = mdiv.querySelectorAll('.group-header');
+            for (const h of headers) {
+                const g = h.dataset.group;
+                const circle = h.querySelector('.group-circle');
+                if (!circle) continue;
+                const state = colorStateForGroup(mapName, g);
+                circle.classList.remove('state-gray','state-red','state-yellow','state-green');
+                circle.classList.add('state-' + state);
+                const colorMap = { gray: '#6c757d', red: '#b02a37', yellow: '#f0ad4e', green: '#2ea44f' };
+                circle.style.background = colorMap[state] || '#777';
+            }
+        }
+    } catch (e) { console.error('refreshGroupCircles error', e); }
 }
 
 function markSpeciesCompleted(speciesName) {
@@ -762,6 +987,7 @@ function revealSpeciesById(speciesId) {
             }
         }
     }
+    try { refreshAllTabCircles(); } catch (e) {}
 }
 
 // Start a polling loop that checks window.caught (length 386) every second
