@@ -61,7 +61,7 @@ async function loginToAP(server, username, password) {
         const ap_client = new AP.Client();
         window.ap_client = ap_client;
 
-        const logData = await ap_client.login(server, username, "Pokemon Emerald", { password, version: { major: 0, minor: 6, build: 3 }, items: AP.itemsHandlingFlags.all });
+        const logData = await ap_client.login(server, username, null, { password, version: { major: 0, minor: 6, build: 3 }, tags:["Tracker","NoText"], items: AP.itemsHandlingFlags.all });
         ap_client.logData = logData;
 
         ap_client.socket.on("bounced", (packet) => {
@@ -79,7 +79,7 @@ async function loginToAP(server, username, password) {
         });
         ap_client.socket.on("disconnected", async () => {
             try {
-                await ap_client.login(server, username, "Pokemon Emerald", { password, version: { major: 0, minor: 6, build: 6 }, items: AP.itemsHandlingFlags.all });
+                await ap_client.login(server, username, null, { password, version: { major: 0, minor: 6, build: 6 }, tags:["Tracker","NoText"], items: AP.itemsHandlingFlags.all });
             } catch (err) {
                 console.error("Re-login failed", err);
             }
