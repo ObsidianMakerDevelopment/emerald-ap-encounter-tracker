@@ -1,5 +1,5 @@
 
-import { emerald_data } from "./data.mjs"
+import { emerald_data, emerald_beta_data, getData, setVersion, Versions } from "./data.mjs"
 
 class APTokenTypes {
     static WRITE = 0;
@@ -12,14 +12,25 @@ class APTokenTypes {
 
 
 let data = {
-    rom_addresses: emerald_data.rom_addresses ||
+    rom_addresses: emerald_data.misc_rom_addresses ||
     {
         gArchipelagoOptions: 5895556,
         sNewGamePCItems: 6210444
     }
 }
 
-export function decodeTokenData(arrayBuffer) {
+export function decodeTokenData(arrayBuffer, base_patch_checksum) {
+    let version = Versions.v067;
+    if(!base_patch_checksum)
+    {
+        version = Versions.v067; //archipelago 0.6.7 stable
+    }
+    else if(base_patch_checksum == "65a5632d20742e9f6a41f91b45048f27")
+    {
+        version = Versions.v300; //beta 3.0.0
+    }
+    setVersion(version);
+    let rom_data = getData(version);
     let numberOfToken = new DataView(arrayBuffer).getUint32(0, true);
     let tokens = [];
 
@@ -66,17 +77,17 @@ export function decodeTokenData(arrayBuffer) {
     //Immediate decodables:
     for (let token of tokens) {
         if (token.type == APTokenTypes.WRITE) {
-            if (token.position == data.rom_addresses["gArchipelagoOptions"] + 0x20) {
+            if (token.position == rom_data.misc_rom_addresses["gArchipelagoOptions"] + 0x20) {
                 token.name = "Free Fly Location";
                 token.value = token.args[0];
             }
             //   address = data.rom_addresses["sNewGamePCItems"] + (i * 4) (Max 20 slots)
-            else if (token.position >= data.rom_addresses["sNewGamePCItems"] && token.position < data.rom_addresses["sNewGamePCItems"] + 20 * 4) {
-                token.name = "PC Item Slot " + ((token.position - data.rom_addresses["sNewGamePCItems"]) / 4);
+            else if (token.position >= rom_data.misc_rom_addresses["sNewGamePCItems"] && token.position < rom_data.misc_rom_addresses["sNewGamePCItems"] + 20 * 4) {
+                token.name = "PC Item Slot " + ((token.position - rom_data.misc_rom_addresses["sNewGamePCItems"]) / 4);
             }
 
-            for (let mapKey in emerald_data.maps) {
-                let map = emerald_data.maps[mapKey];
+            for (let mapKey in rom_data.maps) {
+                let map = rom_data.maps[mapKey];
 
                 if ("land_encounters" in map) {
                     for (let i = 0; i < map.land_encounters.slots.length; i++) {

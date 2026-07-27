@@ -1,7 +1,7 @@
 import * as AP from "archipelago.js";
 import * as ZIP from "jszip";
 import { decodeTokenData } from "./tokensDecoder.mjs";
-import { emerald_data } from "./data.mjs"
+import { getData } from "./data.mjs"
 import { tabMapping, imgMapping } from "./tab_mapping.mjs"
 import { pokemons } from "./mons.mjs"
 import * as logic from "./logic.mjs"
@@ -228,6 +228,7 @@ function extractPokemonPerMap(tokens) {
     }
     let speciesNameMap = {};
     //Build species name map:
+    let emerald_data = getData();
     for (let key in emerald_data.constants) {
         if (key.startsWith("SPECIES_")) {
             const speciesId = emerald_data.constants[key];
@@ -376,7 +377,8 @@ function formatDisplayName(raw) {
 function openFilePicker(optionsCallback) {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".apemerald";
+    // Accept both official (.apemerald) and beta (.apemeraldbeta) patch files
+    input.accept = ".apemerald,.apemeraldbeta";
     input.addEventListener("change", async (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -394,11 +396,11 @@ function openFilePicker(optionsCallback) {
                 }).catch((err) => {
                     console.error("Failed to read archipelago.json from ZIP", err);
                 });
-            if (zip.files["token_data.bin"]) {
+            if (zip.files["token_data.bin"]) { // Should depend on version, use base_patch_checksum to determine version
                 let content = await zip.files["token_data.bin"].async("arraybuffer")
                 console.log("Loaded token_data.bin:", content);
                 options.tokenData = content;
-                options.tokens = await decodeTokenData(content);
+                options.tokens = await decodeTokenData(content, options.slot?.base_patch_checksum);
 
                 // Handle the binary data as needed
                 //console.log("Decoded tokens:", options.tokens);
