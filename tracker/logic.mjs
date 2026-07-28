@@ -8,40 +8,72 @@ import * as AP from "archipelago.js";
 export let BADGES = ["Stone Badge", "Knuckle Badge", "Dynamo Badge", "Heat Badge", "Balance Badge", "Feather Badge", "Mind Badge", "Rain Badge"];
 export let GYMS = ["defeat_roxanne", "defeat_brawly", "defeat_wattson", "defeat_flannery", "defeat_norman", "defeat_winona", "defeat_tate_and_liza", "defeat_juan"];
 
+let items = {};
+let items_initialized = false;
+let cached_has = {};
+export function invalidate_cache() {
+    cached_has = {};
+}
+function cache(item, value) {
+    cached_has[item] = value;
+    return value;
+}
 export function has(item) {
     if (item == 0) return true;
+    if (cached_has[item] !== undefined) {
+        return cached_has[item];
+    }
+    if (window.ap_client && !items_initialized) {
+        //Register a listener to create the items map
+        /**
+         * @type {AP.Client}
+         */
+        let client = window.ap_client;
+
+        client.items.on("itemsReceived", (ritems, index) => {
+            if(index <=0) items = {}; // Reset items on first index
+            for (let received_item of ritems) {
+                /**
+                 * @type {AP.Item}
+                 */
+                let iz = received_item;
+                items[iz.name] = (items[iz.name] || 0) + 1;
+            }
+        });
+        items_initialized = true;
+
+    }
+
 
     if (item == "defeat_roxanne") {
-        return true; //Roxanne is possible to challenge at any time, so we will just assume the player can defeat her
+        return cache(item, true); //Roxanne is possible to challenge at any time, so we will just assume the player can defeat her
     }
     else if (item == "defeat_brawly") {
-        return dewford_access();
+        return cache(item, dewford_access());
     }
     else if (item == "defeat_wattson") {
-        return mauville_access();
+        return cache(item, mauville_access());
     }
     else if (item == "defeat_flannery") {
-        return lavaridge_access();
+        return cache(item, lavaridge_access());
     }
     else if (item == "defeat_norman") {
-        return has_norman_req();
+        return cache(item, has_norman_req());
     }
     else if (item == "defeat_winona") {
-        return fortree_access() && has("Devon Scope");
+        return cache(item, fortree_access() && has("Devon Scope"));
     }
     else if (item == "defeat_tate_and_liza") {
-        return mossdeep_access();
+        return cache(item, mossdeep_access());
     }
     else if (item == "defeat_juan") {
-        return sootopolis_access(); //TODO: Add logic for defeating Juan, currently only checks if player can access Sootopolis, rayquaza sequence is not implemented yet
+        return cache(item, sootopolis_access()); //TODO: Add logic for defeating Juan, currently only checks if player can access Sootopolis, rayquaza sequence is not implemented yet
     }
-    else if(item == "deliver_letter")
-    {
-        return inner_granite_cave_access() && has("Letter");
+    else if (item == "deliver_letter") {
+        return cache(item, inner_granite_cave_access() && has("Letter"));
     }
-    else if(item == "defeat_champion")
-    {
-        return e4_access();
+    else if (item == "defeat_champion") {
+        return cache(item, e4_access());
     }
     if (item.startsWith("free_fly_")) {
         if (window.freeflyid) {
@@ -66,22 +98,25 @@ export function has(item) {
                 13: "sootopolis", // Free Fly Sootopolis
                 14: "evergrande" // Free Fly Ever Grande
             }
-            return mapping[window.freeflyid] === item.replace("free_fly_", "");
+            return cache(item, mapping[window.freeflyid] === item.replace("free_fly_", ""));
         }
     }
     if (item == "Itemfinder Off") {
         if (window.ap_client) {
-            return !window.ap_client.logData.require_itemfinder;
+            return cache(item, !window.ap_client.logData.require_itemfinder);
         }
     }
     if (item == "talk_mr_stone") {
-        return has("Devon Goods"); //Logic to be able to talk to mr stone is not implemented yet, so we will just assume the player can talk to him
+        return cache(item, has("Devon Goods")); //Logic to be able to talk to mr stone is not implemented yet, so we will just assume the player can talk to him
     }
     if (item == "steven_gives_dive") {
-        return mossdeep_access() && has("defeat_champion") && has("defeat_shelly");
+        return cache(item, mossdeep_access() && has("defeat_champion") && has("defeat_shelly"));
     }
     if (window.ap_client) {
-        return window.ap_client.items.received.find(x => x.name == item) !== undefined;
+        if(items_initialized) {
+            return cache(item, items[item] !== undefined && items[item] > 0);
+        }
+        return cache(item, window.ap_client.items.received.find(x => x.name == item) !== undefined);
     }
     return false;
 }
@@ -303,7 +338,7 @@ export function victory_road_access() {
 }
 export function victory_road_b1f_access() {
     let flash_req = window.ap_client?.logData?.require_flash || 1;
-    return victory_road_access() && rock_smash() && strength() && ((flash_req ==0) || flash());
+    return victory_road_access() && rock_smash() && strength() && ((flash_req == 0) || flash());
 }
 export function victory_road_b2f_access() {
     return victory_road_b1f_access();
@@ -320,10 +355,10 @@ export function terra_cave_access() {
 export function marine_cave_access() {
     return dive() && has("defeat_champion") && has("defeat_shelly");
 }
-export function ever_grande_encounters(){
+export function ever_grande_encounters() {
     return (free_fly("ever_grande") && surf()) || (route_124_access());
 }
-export function jagged_pass_access(){
+export function jagged_pass_access() {
     return (mt_chimney_access() && pass_cable_car()) || (free_fly("lavaridge") && has("Acro Bike"));
 }
 export function magma_hideout_access() {
@@ -346,29 +381,23 @@ export function granite_cave_inner_access() {
 export function mt_pyre_access() {
     return fortree_access() && surf() || (lilycove_access() && surf());
 }
-export function safari_zone_access()
-{
+export function safari_zone_access() {
     return lilycove_access() && has("Safari Zone Pass");
 }
-export function meteor_falls_access()
-{
-    return fallarbor_access(); 
+export function meteor_falls_access() {
+    return fallarbor_access();
 }
-export function meteor_falls_1f2r_access()
-{
+export function meteor_falls_1f2r_access() {
     return meteor_falls_access() && surf() && waterfall();
 }
-export function meteor_falls_b1f1r_access()
-{
+export function meteor_falls_b1f1r_access() {
     return meteor_falls_access() && surf() && waterfall();
 }
-export function meteor_falls_b1f2r_access()
-{
+export function meteor_falls_b1f2r_access() {
     return meteor_falls_access() && surf() && waterfall();
 }
-export function meteor_falls_steven_room()
-{
-    return meteor_falls_access() && surf() && waterfall() && has("defeat_champion") ;
+export function meteor_falls_steven_room() {
+    return meteor_falls_access() && surf() && waterfall() && has("defeat_champion");
 }
 
 /* Example logData:
@@ -486,7 +515,7 @@ export class RoomLogic {
     }
 }
 export let roomLogic = {
-    "MAP_ABANDONED_SHIP_HIDDEN_FLOOR_CORRIDORS": new RoomLogic(()=>surf() && dive()),
+    "MAP_ABANDONED_SHIP_HIDDEN_FLOOR_CORRIDORS": new RoomLogic(() => surf() && dive()),
     "MAP_ABANDONED_SHIP_ROOMS_B1F": new RoomLogic(surf),
     "MAP_ARTISAN_CAVE_1F": new RoomLogic(artisan_cave_access),
     "MAP_ARTISAN_CAVE_B1F": new RoomLogic(artisan_cave_access),
@@ -495,7 +524,7 @@ export let roomLogic = {
     "MAP_DESERT_UNDERPASS": new RoomLogic(desert_ruins_access),
     "MAP_DEWFORD_TOWN": new RoomLogic(dewford_access),
     "MAP_EVER_GRANDE_CITY": new RoomLogic(ever_grande_encounters), // Weird logic because encounters can be accessed from below, not just from the top of the waterfall
-    "MAP_FIERY_PATH": new RoomLogic(()=>fallarbor_access() || (mauville_access()&&rock_smash())),
+    "MAP_FIERY_PATH": new RoomLogic(() => fallarbor_access() || (mauville_access() && rock_smash())),
     "MAP_GRANITE_CAVE_1F": new RoomLogic(dewford_access),
     "MAP_GRANITE_CAVE_B1F": new RoomLogic(granite_cave_inner_access),
     "MAP_GRANITE_CAVE_B2F": new RoomLogic(granite_cave_inner_access),
@@ -511,20 +540,20 @@ export let roomLogic = {
     "MAP_ROUTE107": new RoomLogic(surf),
     "MAP_ROUTE108": new RoomLogic(surf),
     "MAP_ROUTE109": new RoomLogic(surf),
-    "MAP_ROUTE110": new RoomLogic(()=>mauville_access() || slateport_access()),
-    "MAP_ROUTE111": new RoomLogic({Land:()=>(mauville_access() && (surf()||rock_smash()))||(fallarbor_access()), Base: ()=>mauville_access()||fallarbor_access(), Water:()=>surf()&&mauville_access(), OldRod:()=>has("Old Rod")&&mauville_access(), GoodRod:()=>has("Good Rod")&&mauville_access(), SuperRod:()=>has("Super Rod")&&mauville_access()}),
-    "MAP_ROUTE112": new RoomLogic(()=>fallarbor_access() || (mauville_access() && rock_smash())),
+    "MAP_ROUTE110": new RoomLogic(() => mauville_access() || slateport_access()),
+    "MAP_ROUTE111": new RoomLogic({ Land: () => (mauville_access() && (surf() || rock_smash())) || (fallarbor_access()), Base: () => mauville_access() || fallarbor_access(), Water: () => surf() && mauville_access(), OldRod: () => has("Old Rod") && mauville_access(), GoodRod: () => has("Good Rod") && mauville_access(), SuperRod: () => has("Super Rod") && mauville_access() }),
+    "MAP_ROUTE112": new RoomLogic(() => fallarbor_access() || (mauville_access() && rock_smash())),
     "MAP_ROUTE113": new RoomLogic(fallarbor_access),
     "MAP_ROUTE114": new RoomLogic(fallarbor_access),
-    "MAP_ROUTE115": new RoomLogic({Land:surf, Base: ()=>true}),
+    "MAP_ROUTE115": new RoomLogic({ Land: surf, Base: () => true }),
     "MAP_ROUTE116": new RoomLogic(true),
     "MAP_ROUTE117": new RoomLogic(mauville_access),
-    "MAP_ROUTE118": new RoomLogic(()=>mauville_access()||fortree_access()),
+    "MAP_ROUTE118": new RoomLogic(() => mauville_access() || fortree_access()),
     "MAP_ROUTE119": new RoomLogic(fortree_access),
     "MAP_ROUTE120": new RoomLogic(fortree_access),
-    "MAP_ROUTE121": new RoomLogic(()=>fortree_access() || lilycove_access()),
-    "MAP_ROUTE122": new RoomLogic(()=>lilycove_access() && surf()),
-    "MAP_ROUTE123": new RoomLogic(()=>lilycove_access() && surf()),
+    "MAP_ROUTE121": new RoomLogic(() => fortree_access() || lilycove_access()),
+    "MAP_ROUTE122": new RoomLogic(() => lilycove_access() && surf()),
+    "MAP_ROUTE123": new RoomLogic(() => lilycove_access() && surf()),
     "MAP_ROUTE124": new RoomLogic(route_124_access),
     "MAP_ROUTE125": new RoomLogic(route_124_access),
     "MAP_ROUTE126": new RoomLogic(route_124_access),
@@ -562,15 +591,15 @@ export let roomLogic = {
     "MAP_MT_PYRE_6F": new RoomLogic(mt_pyre_access),
     "MAP_MT_PYRE_EXTERIOR": new RoomLogic(mt_pyre_access),
     "MAP_MT_PYRE_SUMMIT": new RoomLogic(mt_pyre_access),
-    "MAP_NEW_MAUVILLE_ENTRANCE": new RoomLogic(()=>mauville_access() && surf()),
-    "MAP_NEW_MAUVILLE_INSIDE": new RoomLogic(()=>mauville_access() && surf()&& has("Basement Key")),
+    "MAP_NEW_MAUVILLE_ENTRANCE": new RoomLogic(() => mauville_access() && surf()),
+    "MAP_NEW_MAUVILLE_INSIDE": new RoomLogic(() => mauville_access() && surf() && has("Basement Key")),
     "MAP_PACIFIDLOG_TOWN": new RoomLogic(route_124_access),
     "MAP_PETALBURG_CITY": new RoomLogic(true),
     "MAP_PETALBURG_WOODS": new RoomLogic(true),
     "MAP_RUSTURF_TUNNEL": new RoomLogic(true),
-    "MAP_SAFARI_ZONE_NORTH": new RoomLogic(()=> safari_zone_access() && has("Acro Bike")),
+    "MAP_SAFARI_ZONE_NORTH": new RoomLogic(() => safari_zone_access() && has("Acro Bike")),
     "MAP_SAFARI_ZONE_NORTHEAST": new RoomLogic(safari_zone_access),
-    "MAP_SAFARI_ZONE_NORTHWEST": new RoomLogic(()=> safari_zone_access() && has("Mach Bike")),
+    "MAP_SAFARI_ZONE_NORTHWEST": new RoomLogic(() => safari_zone_access() && has("Mach Bike")),
     "MAP_SAFARI_ZONE_SOUTH": new RoomLogic(safari_zone_access),
     "MAP_SAFARI_ZONE_SOUTHEAST": new RoomLogic(safari_zone_access),
     "MAP_SAFARI_ZONE_SOUTHWEST": new RoomLogic(safari_zone_access),
@@ -590,8 +619,8 @@ export let roomLogic = {
     "MAP_SHOAL_CAVE_LOW_TIDE_STAIRS_ROOM": new RoomLogic(shoal_cave_access),
     "MAP_SLATEPORT_CITY": new RoomLogic(slateport_access),
     "MAP_SOOTOPOLIS_CITY": new RoomLogic(sootopolis_access),
-    "MAP_UNDERWATER_ROUTE124": new RoomLogic(()=> route_124_access() && dive()),
-    "MAP_UNDERWATER_ROUTE126": new RoomLogic(()=> route_124_access() && dive()),
+    "MAP_UNDERWATER_ROUTE124": new RoomLogic(() => route_124_access() && dive()),
+    "MAP_UNDERWATER_ROUTE126": new RoomLogic(() => route_124_access() && dive()),
     "MAP_SKY_PILLAR_1F": new RoomLogic(route_124_access),
     "MAP_SKY_PILLAR_3F": new RoomLogic(route_124_access),
     "MAP_SKY_PILLAR_5F": new RoomLogic(route_124_access),

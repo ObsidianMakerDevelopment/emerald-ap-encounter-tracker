@@ -61,7 +61,7 @@ async function loginToAP(server, username, password) {
         const ap_client = new AP.Client();
         window.ap_client = ap_client;
 
-        const logData = await ap_client.login(server, username, null, { password, version: { major: 0, minor: 6, build: 3 }, tags:["Tracker","NoText"], items: AP.itemsHandlingFlags.all });
+        const logData = await ap_client.login(server, username, null, { password, version: { major: 0, minor: 6, build: 3 }, tags: ["Tracker", "NoText"], items: AP.itemsHandlingFlags.all });
         ap_client.logData = logData;
 
         ap_client.socket.on("bounced", (packet) => {
@@ -79,40 +79,11 @@ async function loginToAP(server, username, password) {
         });
         ap_client.socket.on("disconnected", async () => {
             try {
-                await ap_client.login(server, username, null, { password, version: { major: 0, minor: 6, build: 6 }, tags:["Tracker","NoText"], items: AP.itemsHandlingFlags.all });
+                await ap_client.login(server, username, null, { password, version: { major: 0, minor: 6, build: 6 }, tags: ["Tracker", "NoText"], items: AP.itemsHandlingFlags.all });
             } catch (err) {
                 console.error("Re-login failed", err);
             }
         });
-
-
-        // Mark species as completed based on any existing logData items
-        try {
-            if (logData && logData.items) {
-                // logData.items might be an array of item objects or names
-                for (const it of logData.items) {
-                    const name = it && (it.name || it.item_name || it.item);
-                    if (name) markSpeciesCompleted(name.toString());
-                }
-            }
-        } catch (e) { console.warn('Error while marking from logData', e); }
-
-        // Listen for future itemsReceived events and mark species accordingly
-        try {
-            if (ap_client.items && typeof ap_client.items.on === 'function') {
-                ap_client.items.on('itemsReceived', (items) => {
-                    try {
-                        for (const it of items) {
-                            const name = it && (it.name || it.item_name || it.item);
-                            if (name) markSpeciesCompleted(name.toString());
-                        }
-                    } catch (e) { console.error('itemsReceived handler error', e); }
-                }, 1);
-            }
-        } catch (e) { console.warn('Failed to register itemsReceived handler', e); }
-
-
-
 
         statusEl.textContent = "Connected as " + (logData && logData.playerName ? logData.playerName : username);
         document.title = (logData && logData.playerName ? logData.playerName : username) + " - Tracker";
@@ -251,7 +222,7 @@ function extractPokemonPerMap(tokens) {
             let percentages = {};
             for (let species in counts) {
                 const speciesName = speciesNameMap[species] || species;
-                const id = pokemons.find(x => x.name.toUpperCase() === speciesName.toUpperCase())?.number || "-"+species;
+                const id = pokemons.find(x => x.name.replace("-","_").toUpperCase() === speciesName.toUpperCase())?.number || "-" + species;
                 percentages[speciesName] = { probability: (counts[species] / total) * 100, id: id, name: speciesName };
             }
             result[mapKey][encounterType] = percentages;
@@ -332,7 +303,7 @@ function setCaughtStateForCard(card, state) {
             if (card.classList.contains('completed')) card.classList.remove('completed');
             updateCardCompletedStyle(card, false);
         }
-        try { refreshAllTabCircles(); } catch (e) {}
+        try { refreshAllTabCircles(); } catch (e) { }
     } catch (e) { console.error('setCaughtStateForCard error', e); }
 }
 
@@ -357,7 +328,7 @@ function setCaughtStateForSpecies(speciesId, state) {
             window.caught[n] = !!state;
             saveCaughtToStorage();
         }
-        try { refreshAllTabCircles(); } catch (e) {}
+        try { refreshAllTabCircles(); } catch (e) { }
     } catch (e) { console.error('setCaughtStateForSpecies error', e); }
 }
 
@@ -710,7 +681,7 @@ function generateMapTabs() {
                 const hash = encodeURIComponent(mapName);
                 if (history && typeof history.replaceState === 'function') history.replaceState(null, '', '#' + hash);
                 else location.hash = hash;
-            } catch (e) { try { location.hash = encodeURIComponent(mapName); } catch (ee) {} }
+            } catch (e) { try { location.hash = encodeURIComponent(mapName); } catch (ee) { } }
 
             // hide other mapDivs
             for (const ch of contentArea.children) ch.style.display = 'none';
@@ -867,7 +838,7 @@ function refreshAllTabCircles() {
             circle.style.background = colorMap[state] || '#777';
         }
     } catch (e) { console.error('refreshAllTabCircles error', e); }
-    try { refreshGroupCircles(); } catch (e) {}
+    try { refreshGroupCircles(); } catch (e) { }
 }
 
 // Compute color/state for a specific group in a map
@@ -939,7 +910,7 @@ function refreshGroupCircles() {
                 const circle = h.querySelector('.group-circle');
                 if (!circle) continue;
                 const state = colorStateForGroup(mapName, g);
-                circle.classList.remove('state-gray','state-red','state-yellow','state-green');
+                circle.classList.remove('state-gray', 'state-red', 'state-yellow', 'state-green');
                 circle.classList.add('state-' + state);
                 const colorMap = { gray: '#6c757d', red: '#b02a37', yellow: '#f0ad4e', green: '#2ea44f' };
                 circle.style.background = colorMap[state] || '#777';
@@ -948,33 +919,6 @@ function refreshGroupCircles() {
     } catch (e) { console.error('refreshGroupCircles error', e); }
 }
 
-function markSpeciesCompleted(speciesName) {
-    if (!speciesName) return;
-    // speciesName may be like 'POTION' or 'NIDOQUEEN' - try uppercase
-    const key = String(speciesName).toUpperCase();
-    const elements = window.speciesElements && window.speciesElements[key];
-    if (elements && elements.length) {
-        for (const el of elements) {
-            if (!el.classList.contains('completed')) {
-                setCaughtStateForCard(el, true);
-            }
-        }
-        return;
-    }
-    // try best-effort: search through all speciesElements keys for substring match
-    if (window.speciesElements) {
-        for (const nameKey in window.speciesElements) {
-            if (nameKey === key) continue;
-            if (nameKey.includes(key) || key.includes(nameKey)) {
-                for (const el of window.speciesElements[nameKey]) {
-                    if (!el.classList.contains('completed')) {
-                        setCaughtStateForCard(el, true);
-                    }
-                }
-            }
-        }
-    }
-}
 
 // Reveal all cards for a given numeric species id (1..386)
 function revealSpeciesById(speciesId) {
@@ -989,7 +933,6 @@ function revealSpeciesById(speciesId) {
             }
         }
     }
-    try { refreshAllTabCircles(); } catch (e) {}
 }
 
 // Start a polling loop that checks window.caught (length 386) every second
@@ -1052,9 +995,6 @@ function startCaughtPolling() {
                     const isCaught = window.ap_client.room.checkedLocations.includes(locId);
                     if (window.caught[i] !== isCaught) {
                         window.caught[i] = isCaught;
-                        if (isCaught) {
-                            revealSpeciesById(i);
-                        }
                     }
                 }
             }
@@ -1064,8 +1004,10 @@ function startCaughtPolling() {
                     revealSpeciesById(i);
                 }
             }
+            try { refreshAllTabCircles(); } catch (e) { }
+
         } catch (e) {
             console.error('caught poll error', e);
         }
-    }, 1000);
+    }, 5000);
 }

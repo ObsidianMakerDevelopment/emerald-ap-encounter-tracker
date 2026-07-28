@@ -26544,6 +26544,7 @@ var logic_exports = /* @__PURE__ */ __exportAll({
 	has_norman_req: () => has_norman_req,
 	hidden: () => hidden,
 	inner_magma_hideout_access: () => inner_magma_hideout_access,
+	invalidate_cache: () => invalidate_cache,
 	island_cave_access: () => island_cave_access,
 	jagged_pass_access: () => jagged_pass_access,
 	lavaridge_access: () => lavaridge_access,
@@ -26608,22 +26609,46 @@ var GYMS = [
 	"defeat_tate_and_liza",
 	"defeat_juan"
 ];
+var items = {};
+var items_initialized = false;
+var cached_has = {};
+function invalidate_cache() {
+	cached_has = {};
+}
+function cache(item, value) {
+	cached_has[item] = value;
+	return value;
+}
 function has(item) {
 	if (item == 0) return true;
-	if (item == "defeat_roxanne") return true;
-	else if (item == "defeat_brawly") return dewford_access();
-	else if (item == "defeat_wattson") return mauville_access();
-	else if (item == "defeat_flannery") return lavaridge_access();
-	else if (item == "defeat_norman") return has_norman_req();
-	else if (item == "defeat_winona") return fortree_access() && has("Devon Scope");
-	else if (item == "defeat_tate_and_liza") return mossdeep_access();
-	else if (item == "defeat_juan") return sootopolis_access();
-	else if (item == "deliver_letter") return inner_granite_cave_access() && has("Letter");
-	else if (item == "defeat_champion") return e4_access();
+	if (cached_has[item] !== void 0) return cached_has[item];
+	if (window.ap_client && !items_initialized) {
+		window.ap_client.items.on("itemsReceived", (ritems, index) => {
+			if (index <= 0) items = {};
+			for (let received_item of ritems) {
+				/**
+				* @type {AP.Item}
+				*/
+				let iz = received_item;
+				items[iz.name] = (items[iz.name] || 0) + 1;
+			}
+		});
+		items_initialized = true;
+	}
+	if (item == "defeat_roxanne") return cache(item, true);
+	else if (item == "defeat_brawly") return cache(item, dewford_access());
+	else if (item == "defeat_wattson") return cache(item, mauville_access());
+	else if (item == "defeat_flannery") return cache(item, lavaridge_access());
+	else if (item == "defeat_norman") return cache(item, has_norman_req());
+	else if (item == "defeat_winona") return cache(item, fortree_access() && has("Devon Scope"));
+	else if (item == "defeat_tate_and_liza") return cache(item, mossdeep_access());
+	else if (item == "defeat_juan") return cache(item, sootopolis_access());
+	else if (item == "deliver_letter") return cache(item, inner_granite_cave_access() && has("Letter"));
+	else if (item == "defeat_champion") return cache(item, e4_access());
 	if (item.startsWith("free_fly_")) {
 		if (window.freeflyid) {
 			if (item == "free_fly_ever_grande" || item == "free_fly_evergrande") return window.freeflyid === 14;
-			return {
+			return cache(item, {
 				0: "littleroot",
 				1: "oldale",
 				2: "petalburg",
@@ -26639,15 +26664,18 @@ function has(item) {
 				12: "mossdeep",
 				13: "sootopolis",
 				14: "evergrande"
-			}[window.freeflyid] === item.replace("free_fly_", "");
+			}[window.freeflyid] === item.replace("free_fly_", ""));
 		}
 	}
 	if (item == "Itemfinder Off") {
-		if (window.ap_client) return !window.ap_client.logData.require_itemfinder;
+		if (window.ap_client) return cache(item, !window.ap_client.logData.require_itemfinder);
 	}
-	if (item == "talk_mr_stone") return has("Devon Goods");
-	if (item == "steven_gives_dive") return mossdeep_access() && has("defeat_champion") && has("defeat_shelly");
-	if (window.ap_client) return window.ap_client.items.received.find((x) => x.name == item) !== void 0;
+	if (item == "talk_mr_stone") return cache(item, has("Devon Goods"));
+	if (item == "steven_gives_dive") return cache(item, mossdeep_access() && has("defeat_champion") && has("defeat_shelly"));
+	if (window.ap_client) {
+		if (items_initialized) return cache(item, items[item] !== void 0 && items[item] > 0);
+		return cache(item, window.ap_client.items.received.find((x) => x.name == item) !== void 0);
+	}
 	return false;
 }
 function free_fly(location) {
@@ -27096,28 +27124,6 @@ async function loginToAP(server, username, password) {
 				console.error("Re-login failed", err);
 			}
 		});
-		try {
-			if (logData && logData.items) for (const it of logData.items) {
-				const name = it && (it.name || it.item_name || it.item);
-				if (name) markSpeciesCompleted(name.toString());
-			}
-		} catch (e) {
-			console.warn("Error while marking from logData", e);
-		}
-		try {
-			if (ap_client.items && typeof ap_client.items.on === "function") ap_client.items.on("itemsReceived", (items) => {
-				try {
-					for (const it of items) {
-						const name = it && (it.name || it.item_name || it.item);
-						if (name) markSpeciesCompleted(name.toString());
-					}
-				} catch (e) {
-					console.error("itemsReceived handler error", e);
-				}
-			}, 1);
-		} catch (e) {
-			console.warn("Failed to register itemsReceived handler", e);
-		}
 		statusEl.textContent = "Connected as " + (logData && logData.playerName ? logData.playerName : username);
 		document.title = (logData && logData.playerName ? logData.playerName : username) + " - Tracker";
 		return {
@@ -27258,7 +27264,7 @@ function extractPokemonPerMap(tokens) {
 			let percentages = {};
 			for (let species in counts) {
 				const speciesName = speciesNameMap[species] || species;
-				const id = pokemons.find((x) => x.name.toUpperCase() === speciesName.toUpperCase())?.number || "-" + species;
+				const id = pokemons.find((x) => x.name.replace("-", "_").toUpperCase() === speciesName.toUpperCase())?.number || "-" + species;
 				percentages[speciesName] = {
 					probability: counts[species] / total * 100,
 					id,
@@ -27876,21 +27882,6 @@ function refreshGroupCircles() {
 		console.error("refreshGroupCircles error", e);
 	}
 }
-function markSpeciesCompleted(speciesName) {
-	if (!speciesName) return;
-	const key = String(speciesName).toUpperCase();
-	const elements = window.speciesElements && window.speciesElements[key];
-	if (elements && elements.length) {
-		for (const el of elements) if (!el.classList.contains("completed")) setCaughtStateForCard(el, true);
-		return;
-	}
-	if (window.speciesElements) for (const nameKey in window.speciesElements) {
-		if (nameKey === key) continue;
-		if (nameKey.includes(key) || key.includes(nameKey)) {
-			for (const el of window.speciesElements[nameKey]) if (!el.classList.contains("completed")) setCaughtStateForCard(el, true);
-		}
-	}
-}
 function revealSpeciesById(speciesId) {
 	if (!speciesId) return;
 	const key = String(speciesId).toUpperCase();
@@ -27901,9 +27892,6 @@ function revealSpeciesById(speciesId) {
 			updateCardCompletedStyle(el, true);
 		}
 	}
-	try {
-		refreshAllTabCircles();
-	} catch (e) {}
 }
 function startCaughtPolling() {
 	if (window._caughtPollIntervalId) return;
@@ -27946,17 +27934,17 @@ function startCaughtPolling() {
 			if (window.ap_client && window.ap_client.room && Array.isArray(window.ap_client.room.checkedLocations)) for (let i = 1; i <= window.maxPokemon; i++) {
 				const locId = 387e4 + i;
 				const isCaught = window.ap_client.room.checkedLocations.includes(locId);
-				if (window.caught[i] !== isCaught) {
-					window.caught[i] = isCaught;
-					if (isCaught) revealSpeciesById(i);
-				}
+				if (window.caught[i] !== isCaught) window.caught[i] = isCaught;
 			}
 			if (!connected) return;
 			for (let i = 1; i <= window.maxPokemon; i++) if (window.caught[i]) revealSpeciesById(i);
+			try {
+				refreshAllTabCircles();
+			} catch (e) {}
 		} catch (e) {
 			console.error("caught poll error", e);
 		}
-	}, 1e3);
+	}, 5e3);
 }
 //#endregion</script>
 </head>
