@@ -11,7 +11,8 @@
     "dependencies": {
         "archipelago.js": "^2.1.0",
         "jszip": "^3.10.1",
-        "pokedex-promise-v2": "^4.2.3"
+        "pokedex-promise-v2": "^4.2.3",
+        "rollup-plugin-esbuild": "^6.2.1"
     },
     "devDependencies": {
         "vite": "^8.1.5",

@@ -32,6 +32,7 @@ export function has(item) {
 
         client.items.on("itemsReceived", (ritems, index) => {
             if(index <=0) items = {}; // Reset items on first index
+            invalidate_cache();
             for (let received_item of ritems) {
                 /**
                  * @type {AP.Item}
@@ -43,7 +44,6 @@ export function has(item) {
         items_initialized = true;
 
     }
-
 
     if (item == "defeat_roxanne") {
         return cache(item, true); //Roxanne is possible to challenge at any time, so we will just assume the player can defeat her

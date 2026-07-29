@@ -113,15 +113,38 @@ function closeConfigMenu() {
     menu.style.display = "none";
 }
 
+function openCreditsMenu() {
+    const back = document.getElementById("creditsBackdrop");
+    const menu = document.getElementById("creditsMenu");
+    if (!back || !menu) return;
+    back.style.display = "block";
+    menu.style.display = "block";
+}
+
+function closeCreditsMenu() {
+    const back = document.getElementById("creditsBackdrop");
+    const menu = document.getElementById("creditsMenu");
+    if (!back || !menu) return;
+    back.style.display = "none";
+    menu.style.display = "none";
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const toggle = document.getElementById("configToggle");
     const back = document.getElementById("configBackdrop");
     const applyBtn = document.getElementById("applyConfigBtn");
     const cancelBtn = document.getElementById("cancelConfigBtn");
 
+    const creditsLink = document.getElementById('creditsLink');
+    const creditsBack = document.getElementById('creditsBackdrop');
+    const closeCreditsBtn = document.getElementById('closeCreditsBtn');
+
     toggle.addEventListener("click", openConfigMenu);
     back.addEventListener("click", closeConfigMenu);
     cancelBtn.addEventListener("click", closeConfigMenu);
+    if (creditsLink) creditsLink.addEventListener('click', (e) => { e.preventDefault(); openCreditsMenu(); });
+    if (creditsBack) creditsBack.addEventListener('click', closeCreditsMenu);
+    if (closeCreditsBtn) closeCreditsBtn.addEventListener('click', closeCreditsMenu);
     const loadPatchBtn = document.getElementById("loadPatchBtn");
     if (loadPatchBtn) loadPatchBtn.addEventListener("click", () => {
         try {
@@ -185,7 +208,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try { startCaughtPolling(); } catch (e) { console.error('startCaughtPolling failed', e); }
 });
 
-function extractPokemonPerMap(tokens) {
+async function extractPokemonPerMap(tokens) {
     let dexsanityData = tokens.filter(t => t.dexsanity).map(t => ({
         map: t.map,
         encounter_type: t.encounter_type,
@@ -199,7 +222,7 @@ function extractPokemonPerMap(tokens) {
     }
     let speciesNameMap = {};
     //Build species name map:
-    let emerald_data = getData();
+    let emerald_data = await getData();
     for (let key in emerald_data.constants) {
         if (key.startsWith("SPECIES_")) {
             const speciesId = emerald_data.constants[key];
@@ -362,21 +385,19 @@ function openFilePicker(optionsCallback) {
             if (zip.files["archipelago.json"])
                 zip.files["archipelago.json"].async("string").then((content) => {
                     const config = JSON.parse(content);
-                    console.log("Loaded config:", config);
                     options.slot = config;
                 }).catch((err) => {
                     console.error("Failed to read archipelago.json from ZIP", err);
                 });
             if (zip.files["token_data.bin"]) { // Should depend on version, use base_patch_checksum to determine version
                 let content = await zip.files["token_data.bin"].async("arraybuffer")
-                console.log("Loaded token_data.bin:", content);
                 options.tokenData = content;
                 options.tokens = await decodeTokenData(content, options.slot?.base_patch_checksum);
 
                 // Handle the binary data as needed
                 //console.log("Decoded tokens:", options.tokens);
 
-                window.maps = extractPokemonPerMap(options.tokens);
+                window.maps = await extractPokemonPerMap(options.tokens);
 
                 window.freeflyid = options.tokens.find(t => t.name === "Free Fly Location")?.value || null;
                 // enable Apply button when maps are present
@@ -394,6 +415,8 @@ function openFilePicker(optionsCallback) {
                     try { generateMapTabs(); } catch (e) { console.error('generateMapTabs failed', e); }
                 }
             }
+
+            window.options = options;
 
             if (optionsCallback) optionsCallback(options);
 

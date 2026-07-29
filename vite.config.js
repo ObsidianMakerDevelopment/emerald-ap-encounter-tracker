@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import esbuild from "rollup-plugin-esbuild";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import fs from "fs";
 import path from "path";
@@ -44,10 +45,17 @@ export default defineConfig({
                 assetFileNames: "tracker.[ext]",
             }
         },
-        minify: false,                // disable JS/CSS/HTML minification
-        cssMinify: false,             // disable CSS minification (Vite 5+)
+        minify: true,                // disable JS/CSS/HTML minification
+        cssMinify: true,             // disable CSS minification (Vite 5+)
         target: "esnext",
         assetsInlineLimit: 100000000
     },
-    plugins: [viteSingleFile(), renameHtmlPlugin("emerald-encounter-tracker.html")]
+    plugins: [viteSingleFile(), renameHtmlPlugin("emerald-encounter-tracker.html"),
+    esbuild({
+        minify: true,
+        minifyWhitespace: true,
+        minifyIdentifiers: false, // DO NOT rename variables
+        minifySyntax: false        // DO NOT rewrite expressions
+    })
+    ]
 });

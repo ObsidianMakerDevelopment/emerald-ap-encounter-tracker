@@ -83,7 +83,32 @@
             <button id="loadPatchBtn" type="button" style="flex:1;padding:10px">Load Patch</button>
             <button id="cancelConfigBtn" type="button" style="flex:1;padding:10px">Cancel</button>
         </div>
+        <div style="margin-top:10px;text-align:center;font-size:0.9rem">
+            <a href="#" id="creditsLink" style="color:#9fd6ff;text-decoration:underline;cursor:pointer">Credits & Licenses</a>
+        </div>
         <div id="configStatus" style="margin-top:12px;font-size:0.9rem;color:#ddd"></div>
+    </div>
+
+    <div id="creditsBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000"></div>
+    <div id="creditsMenu" style="display:none;position:fixed;inset:auto;top:50%;left:50%;transform:translate(-50%,-50%);width:min(640px,calc(100vw-32px));max-height:80vh;overflow:auto;padding:20px;background:#041018;border-radius:8px;color:white;z-index:1001">
+        <h2 style="text-align:center;margin-bottom:12px">Credits & Licenses</h2>
+        <div style="font-size:0.95rem;line-height:1.4;color:#ddd">
+            <h3 style="margin-top:6px">Libraries</h3>
+            <ul>
+                <li>Archipelago.js - Archipelago client used for network integration.</li>
+                <li>JSZip - ZIP file reading for patch files.</li>
+            </ul>
+            <h3 style="margin-top:6px">Images, code and data</h3>
+            <ul>
+                <li>PokeAPI sprite assets - pokemon sprites hosted on GitHub (PokeAPI project).</li>
+                <li>Rom addresses - Zunawe from <a href="https://github.com/ArchipelagoMW/Archipelago/blob/main/worlds/pokemon_emerald/data/extracted_data.json" style="color:#9fd6ff">Archipelago Repository</a>.</li>
+                <li>Map images and logic - Poptracker pack by by @seto10987, @palex00 and @Vyneras in <a href="https://github.com/seto10987/Archipelago-Emerald-AP-Tracker/" style="color:#9fd6ff">repository</a>.</li>
+                <li>Main code of this project - Jonathan Boisclair (ObsidianMaker) - <a href="https://github.com/ObsidianMakerDevelopment/emerald-ap-encounter-tracker" style="color:#9fd6ff">repository</a>.</li>
+            </ul>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:center">
+            <button id="closeCreditsBtn" type="button" style="padding:8px 12px">Close</button>
+        </div>
     </div>
 
     <div id="mapsContainer" style="display:none;width:100vw;height:100vh;overflow:auto"></div>

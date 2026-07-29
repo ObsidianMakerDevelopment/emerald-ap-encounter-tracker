@@ -19,8 +19,8 @@ let data = {
     }
 }
 
-export function decodeTokenData(arrayBuffer, base_patch_checksum) {
-    let version = Versions.v067;
+export async function decodeTokenData(arrayBuffer, base_patch_checksum) {
+    let version = Versions.unknown;
     if(!base_patch_checksum)
     {
         version = Versions.v067; //archipelago 0.6.7 stable
@@ -30,7 +30,7 @@ export function decodeTokenData(arrayBuffer, base_patch_checksum) {
         version = Versions.v300; //beta 3.0.0
     }
     setVersion(version);
-    let rom_data = getData(version);
+    let rom_data = await getData(version);
     let numberOfToken = new DataView(arrayBuffer).getUint32(0, true);
     let tokens = [];
 
@@ -74,107 +74,94 @@ export function decodeTokenData(arrayBuffer, base_patch_checksum) {
             return tokens;
         }
     }
-    //Immediate decodables:
+    // Build a lookup map of decodable addresses -> metadata to avoid repeated comparisons
+    let addressMap = new Map();
+    let minAddr = Number.POSITIVE_INFINITY;
+    let maxAddr = Number.NEGATIVE_INFINITY;
+    function addAddress(addr, meta) {
+        addressMap.set(addr, meta);
+        if (addr < minAddr) minAddr = addr;
+        if (addr > maxAddr) maxAddr = addr;
+    }
+
+    // Free Fly location
+    addAddress(rom_data.misc_rom_addresses["gArchipelagoOptions"] + 0x20, { kind: "FreeFly" });
+
+    // PC item slots (20 slots, 4 bytes each)
+    for (let i = 0; i < 20; i++) {
+        let addr = rom_data.misc_rom_addresses["sNewGamePCItems"] + (i * 4);
+        addAddress(addr, { kind: "PCItem", index: i });
+    }
+
+    // Map-based encounters
+    for (let mapKey in rom_data.maps) {
+        let map = rom_data.maps[mapKey];
+
+        if ("land_encounters" in map) {
+            for (let i = 0; i < map.land_encounters.slots.length; i++) {
+                let address = map.land_encounters.address + 2 + (4 * i);
+                addAddress(address, { kind: "Encounter", map: mapKey, encounter_type: "Land", slot_index: i });
+            }
+        }
+        if ("water_encounters" in map) {
+            for (let i = 0; i < map.water_encounters.slots.length; i++) {
+                let address = map.water_encounters.address + 2 + (4 * i);
+                addAddress(address, { kind: "Encounter", map: mapKey, encounter_type: "Water", slot_index: i });
+            }
+        }
+        if ("fishing_encounters" in map) {
+            const fishingType = {
+                0: "Old Rod",
+                1: "Old Rod",
+                2: "Good Rod",
+                3: "Good Rod",
+                4: "Good Rod",
+                5: "Super Rod",
+                6: "Super Rod",
+                7: "Super Rod",
+                8: "Super Rod",
+                9: "Super Rod",
+            };
+            for (let i = 0; i < map.fishing_encounters.slots.length; i++) {
+                let address = map.fishing_encounters.address + 2 + (4 * i);
+                addAddress(address, { kind: "Encounter", map: mapKey, encounter_type: fishingType[i], slot_index: i });
+            }
+        }
+        if ("rock_smash_encounters" in map) {
+            for (let i = 0; i < map.rock_smash_encounters.slots.length; i++) {
+                let address = map.rock_smash_encounters.address + 2 + (4 * i);
+                addAddress(address, { kind: "Encounter", map: mapKey, encounter_type: "Rock Smash", slot_index: i });
+            }
+        }
+    }
+
+    const hasAddresses = minAddr <= maxAddr;
+
+    // Immediate decodables: single lookup per token
     for (let token of tokens) {
-        if (token.type == APTokenTypes.WRITE) {
-            if (token.position == rom_data.misc_rom_addresses["gArchipelagoOptions"] + 0x20) {
-                token.name = "Free Fly Location";
-                token.value = token.args[0];
-            }
-            //   address = data.rom_addresses["sNewGamePCItems"] + (i * 4) (Max 20 slots)
-            else if (token.position >= rom_data.misc_rom_addresses["sNewGamePCItems"] && token.position < rom_data.misc_rom_addresses["sNewGamePCItems"] + 20 * 4) {
-                token.name = "PC Item Slot " + ((token.position - rom_data.misc_rom_addresses["sNewGamePCItems"]) / 4);
-            }
+        if (token.type !== APTokenTypes.WRITE) continue;
 
-            for (let mapKey in rom_data.maps) {
-                let map = rom_data.maps[mapKey];
+        // Fast O(1) range check before map lookup
+        if (!hasAddresses) continue;
+        if (token.position < minAddr || token.position > maxAddr) continue;
+        let meta = addressMap.get(token.position);
+        if (!meta) continue;
 
-                if ("land_encounters" in map) {
-                    for (let i = 0; i < map.land_encounters.slots.length; i++) {
-                        let address = map.land_encounters.address + 2 + (4 * i);``
-                        if (token.position == address) {
-                            token.name = "Land Encounter Slot " + i + " on Map " + mapKey;
-                            token.dexsanity = true;
-                            token.map = mapKey;
-                            token.encounter_type = "Land";
-                            token.species = new Uint16Array(token.args.buffer)[0];
-                            if (mapKey == "MAP_MT_PYRE_SUMMIT") { console.log("Map Mt Pyre Summit", mapKey, token, token.args) }
-                        }
-
-                    }
-                }
-                if ("water_encounters" in map) {
-                    for (let i = 0; i < map.water_encounters.slots.length; i++) {
-                        let address = map.water_encounters.address + 2 + (4 * i);
-                        if (token.position == address) {
-                            token.name = "Water Encounter Slot " + i + " on Map " + mapKey;
-                            token.dexsanity = true;
-                            token.map = mapKey;
-                            token.encounter_type = "Water";
-                            token.species = new Uint16Array(token.args.buffer)[0];
-                        }
-                    }
-                }
-                if ("fishing_encounters" in map) {
-                    for (let i = 0; i < map.fishing_encounters.slots.length; i++) {
-                        let address = map.fishing_encounters.address + 2 + (4 * i);
-                        if (token.position == address) {
-                            token.name = "Fishing Encounter Slot " + i + " on Map " + mapKey;
-                            token.dexsanity = true;
-                            token.map = mapKey;
-                            token.encounter_type = {
-                                0: "Old Rod",
-                                1: "Old Rod",
-                                2: "Good Rod",
-                                3: "Good Rod",
-                                4: "Good Rod",
-                                5: "Super Rod",
-                                6: "Super Rod",
-                                7: "Super Rod",
-                                8: "Super Rod",
-                                9: "Super Rod",
-                            }[i];
-                            token.species = new Uint16Array(token.args.buffer)[0];
-                        }
-                    }
-                }
-                if ("rock_smash_encounters" in map) {
-                    for (let i = 0; i < map.rock_smash_encounters.slots.length; i++) {
-                        let address = map.rock_smash_encounters.address + 2 + (4 * i);
-                        if (token.position == address) {
-                            token.name = "Rock Smash Encounter Slot " + i + " on Map " + mapKey;
-                            token.dexsanity = true;
-                            token.map = mapKey;
-                            token.encounter_type = "Rock Smash";
-                            token.species = new Uint16Array(token.args.buffer)[0];
-                        }
-                    }
-                }
-            }
+        if (meta.kind === "FreeFly") {
+            token.name = "Free Fly Location";
+            token.value = token.args[0];
+        }
+        else if (meta.kind === "PCItem") {
+            token.name = "PC Item Slot " + meta.index;
+        }
+        else if (meta.kind === "Encounter") {
+            token.name = `${meta.encounter_type} Encounter Slot ${meta.slot_index} on Map ${meta.map}`;
+            token.dexsanity = true;
+            token.map = meta.map;
+            token.encounter_type = meta.encounter_type;
+            token.species = new Uint16Array(token.args.buffer)[0];
         }
     }
 
     return tokens;
 }
-
-/*data = bytearray()
-        data.extend(len(self._tokens).to_bytes(4, "little"))
-        for token_type, offset, args in self._tokens:
-            data.append(token_type)
-            data.extend(offset.to_bytes(4, "little"))
-            if token_type in [APTokenTypes.AND_8, APTokenTypes.OR_8, APTokenTypes.XOR_8]:
-                assert isinstance(args, int), f"Arguments to AND/OR/XOR must be of type int, not {type(args)}"
-                data.extend(int.to_bytes(1, 4, "little"))
-                data.append(args)
-            elif token_type in [APTokenTypes.COPY, APTokenTypes.RLE]:
-                assert isinstance(args, tuple), f"Arguments to COPY/RLE must be of type tuple, not {type(args)}"
-                data.extend(int.to_bytes(8, 4, "little"))
-                data.extend(args[0].to_bytes(4, "little"))
-                data.extend(args[1].to_bytes(4, "little"))
-            elif token_type == APTokenTypes.WRITE:
-                assert isinstance(args, bytes), f"Arguments to WRITE must be of type bytes, not {type(args)}"
-                data.extend(len(args).to_bytes(4, "little"))
-                data.extend(args)
-            else:
-                raise ValueError(f"Unknown token type {token_type}")
-        return bytes(data)*/

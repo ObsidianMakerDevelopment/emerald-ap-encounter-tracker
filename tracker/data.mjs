@@ -19443,8 +19443,9 @@ export let emerald_beta_data = {
 export class Versions {
     static v067 = "v067";
     static v300 = "v300";
+    static unknown = "unknown";
 }
-let gVersion = Versions.v067;
+let gVersion = Versions.unknown;
 /**
  * 
  * @param {string} version 
@@ -19455,12 +19456,47 @@ export function setVersion(version) {
 /**
  * @param {string|undefined} version 
  */
-export function getData(version) {
+export async function getData(version) {
     if (!version) version = gVersion;
     if (version === Versions.v067) {
         return emerald_data;
     }
     if (version === Versions.v300) {
         return emerald_beta_data;
+    }
+    if (version === Versions.unknown) {
+        // The user should upload the version themselves
+        alert("The patch file you provided is from an unknown version, please upload the extracted_data.json file contained inside your pokemon_emerald.apworld/data/extracted_data.json");
+
+        let promise = new Promise((resolve, reject) => {
+            function openFilePicker(optionsCallback) {
+                const input = document.createElement("input");
+                input.type = "file";
+                // Accept both official (.apemerald) and beta (.apemeraldbeta) patch files
+                input.accept = ".json";
+                input.addEventListener("change", async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            optionsCallback(data);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            }
+
+            openFilePicker((data) => {
+                resolve(data);
+            });
+        });
+
+        return await promise;
+
     }
 }
