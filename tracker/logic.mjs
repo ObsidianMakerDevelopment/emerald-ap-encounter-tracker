@@ -18,6 +18,7 @@ function cache(item, value) {
     cached_has[item] = value;
     return value;
 }
+let eventsFlags = 0;
 export function has(item) {
     if (item == 0) return true;
     if (cached_has[item] !== undefined) {
@@ -41,6 +42,13 @@ export function has(item) {
                 items[iz.name] = (items[iz.name] || 0) + 1;
             }
         });
+
+        client.storage.notify("pokemon_emerald_events_0_"+client.players.self.slot, (data) => {
+            //Get events as string?
+            console.log("Received events", data);
+
+            eventsFlags = Number(data);
+        });
         items_initialized = true;
 
     }
@@ -49,28 +57,28 @@ export function has(item) {
         return cache(item, true); //Roxanne is possible to challenge at any time, so we will just assume the player can defeat her
     }
     else if (item == "defeat_brawly") {
-        return cache(item, dewford_access());
+        return cache(item, dewford_access()) || (eventsFlags & 0x1) != 0; //OOL brawly
     }
     else if (item == "defeat_wattson") {
-        return cache(item, mauville_access());
+        return cache(item, mauville_access()) || (eventsFlags & 0x2) != 0; //OOL brawly
     }
     else if (item == "defeat_flannery") {
-        return cache(item, lavaridge_access());
+        return cache(item, lavaridge_access()) || (eventsFlags & 0x4) != 0; //OOL brawly
     }
     else if (item == "defeat_norman") {
-        return cache(item, has_norman_req());
+        return cache(item, has_norman_req()) || (eventsFlags & 0x8) != 0; //OOL brawly
     }
     else if (item == "defeat_winona") {
-        return cache(item, fortree_access() && has("Devon Scope"));
+        return cache(item, fortree_access() && has("Devon Scope")) || (eventsFlags & 16) != 0; //OOL brawly
     }
     else if (item == "defeat_tate_and_liza") {
-        return cache(item, mossdeep_access());
+        return cache(item, mossdeep_access()) || (eventsFlags & 32) != 0; //OOL brawly
     }
     else if (item == "defeat_juan") {
-        return cache(item, sootopolis_access()); //TODO: Add logic for defeating Juan, currently only checks if player can access Sootopolis, rayquaza sequence is not implemented yet
+        return cache(item, sootopolis_access()) || (eventsFlags & 64) != 0; //OOL brawly; //TODO: Add logic for defeating Juan, currently only checks if player can access Sootopolis, rayquaza sequence is not implemented yet
     }
     else if (item == "deliver_letter") {
-        return cache(item, granite_cave_inner_access() && has("Letter"));
+        return (eventsFlags & 128) != 0 || cache(item, granite_cave_inner_access() && has("Letter"));
     }
     else if (item == "defeat_champion") {
         return cache(item, e4_access());
@@ -110,11 +118,22 @@ export function has(item) {
             return cache(item, !window.ap_client.logData.require_itemfinder);
         }
     }
+    if (item == "defeat_shelly")
+    {
+        //bit == 11
+        return (eventsFlags & 2048) != 0;
+    }
     if (item == "talk_mr_stone") {
         return cache(item, has("Devon Goods")); //Logic to be able to talk to mr stone is not implemented yet, so we will just assume the player can talk to him
     }
     if (item == "steven_gives_dive") {
-        return cache(item, mossdeep_access() && has("defeat_champion") && has("defeat_shelly"));
+        //bit = 19
+        return (eventsFlags & 524288) != 0;
+    }
+    if(item == "aqua_steals_submarine")
+    {
+        //bit = 14
+        return (eventsFlags & 16384) != 0;
     }
     if (window.ap_client) {
         if(items_initialized) {
