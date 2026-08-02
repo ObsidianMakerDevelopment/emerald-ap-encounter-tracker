@@ -75,6 +75,10 @@ export function has(item) {
     else if (item == "defeat_champion") {
         return cache(item, e4_access());
     }
+    else if(item =="talk_mr_stone"){
+        return true; // Always possible to talk to Mr. Stone, it's an event that doesn't require any items or badges to access, so we will just assume the player can talk to him
+    }
+  
     if (item.startsWith("free_fly_")) {
         if (window.freeflyid) {
             if (item == "free_fly_ever_grande" || item == "free_fly_evergrande") {
@@ -125,7 +129,24 @@ export function free_fly(location) {
 }
 export function canUseHM(hm) {
     if (window.ap_client) {
-        return has(window.ap_client.logData.hm_requirements[hm]);
+        let requirements = window.ap_client.logData.hm_requirements[hm]
+        if(requirements ==0) return true;
+        if(requirements.length)
+        {
+            //Is Array
+            return requirements.every(req => has(req));
+        }
+        else if (Number.isFinite(requirements)) {
+            //Count badges
+            let count = 0;
+            for (let badge of BADGES) {
+                if (has(badge)) {
+                    count++;
+                }
+            }
+            return count >= requirements;
+        }
+        return false;
     }
 }
 export function cut() {
@@ -541,7 +562,7 @@ export let roomLogic = {
     "MAP_ROUTE108": new RoomLogic(surf),
     "MAP_ROUTE109": new RoomLogic(surf),
     "MAP_ROUTE110": new RoomLogic(() => mauville_access() || slateport_access()),
-    "MAP_ROUTE111": new RoomLogic({ Land: () => (mauville_access() && (surf() || rock_smash())) || (fallarbor_access()), Base: () => mauville_access() || fallarbor_access(), Water: () => surf() && mauville_access(), OldRod: () => has("Old Rod") && mauville_access(), GoodRod: () => has("Good Rod") && mauville_access(), SuperRod: () => has("Super Rod") && mauville_access() }),
+    "MAP_ROUTE111": new RoomLogic({ Land: () => (has("Go Goggles") && (mauville_access() && (surf() || rock_smash()))) || (fallarbor_access()), Base: () => mauville_access() || fallarbor_access(), Water: () => surf() && mauville_access(), OldRod: () => has("Old Rod") && mauville_access(), GoodRod: () => has("Good Rod") && mauville_access(), SuperRod: () => has("Super Rod") && mauville_access() }),
     "MAP_ROUTE112": new RoomLogic(() => fallarbor_access() || (mauville_access() && rock_smash())),
     "MAP_ROUTE113": new RoomLogic(fallarbor_access),
     "MAP_ROUTE114": new RoomLogic(fallarbor_access),

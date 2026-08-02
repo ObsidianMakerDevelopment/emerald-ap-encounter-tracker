@@ -66,7 +66,7 @@ async function loginToAP(server, username, password) {
 
         ap_client.socket.on("bounced", (packet) => {
             console.log("Bounce data", packet);
-            if (packet.data && packet.data.mapId) {
+            if (packet.data && tabMapping[packet.data.mapId]) {
                 //Try changing tab to that map if it exists
 
                 tabMapping[packet.data.mapId] && document.querySelectorAll("#mapsContainer button").forEach(btn => {
