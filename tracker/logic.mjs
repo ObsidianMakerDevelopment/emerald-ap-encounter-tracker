@@ -43,12 +43,13 @@ export function has(item) {
             }
         });
 
-        client.storage.notify(["pokemon_emerald_events_0_"+client.players.self.slot], (data) => {
+        let key = "pokemon_emerald_events_0_"+client.players.self.slot;
+        client.storage.notify([key], (data) => {
             //Get events as string?
             console.log("Received events", data);
 
-            eventsFlags = Number(data);
-        });
+            eventsFlags = window.eventsFlags = Number(data);
+        }).then(x=>eventsFlags= window.eventsFlags = Number(x[key]));
         items_initialized = true;
 
     }
