@@ -43,7 +43,7 @@ export function has(item) {
             }
         });
 
-        client.storage.notify("pokemon_emerald_events_0_"+client.players.self.slot, (data) => {
+        client.storage.notify(["pokemon_emerald_events_0_"+client.players.self.slot], (data) => {
             //Get events as string?
             console.log("Received events", data);
 
