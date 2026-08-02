@@ -70,7 +70,7 @@ export function has(item) {
         return cache(item, sootopolis_access()); //TODO: Add logic for defeating Juan, currently only checks if player can access Sootopolis, rayquaza sequence is not implemented yet
     }
     else if (item == "deliver_letter") {
-        return cache(item, inner_granite_cave_access() && has("Letter"));
+        return cache(item, granite_cave_inner_access() && has("Letter"));
     }
     else if (item == "defeat_champion") {
         return cache(item, e4_access());
