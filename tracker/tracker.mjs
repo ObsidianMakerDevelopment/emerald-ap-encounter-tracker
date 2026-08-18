@@ -228,6 +228,7 @@ async function extractPokemonPerMap(tokens) {
             const speciesId = emerald_data.constants[key];
             const speciesName = key.replace("SPECIES_", "");
             speciesNameMap[speciesId] = speciesName;
+            window.speciesNameMap = speciesNameMap; // expose globally for debugging
         }
     }
     //Phase 2, convert duplicate to percentages:
@@ -245,7 +246,10 @@ async function extractPokemonPerMap(tokens) {
             let percentages = {};
             for (let species in counts) {
                 const speciesName = speciesNameMap[species] || species;
-                const id = pokemons.find(x => x.name.replace("-","_").toUpperCase() === speciesName.toUpperCase())?.number || "-" + species;
+             
+
+                const id = pokemons.find(x => x.name.replace("-","_").toUpperCase() == speciesName.toUpperCase())?.number || "-" + species;
+                if(Number(id)<0) console.error("Could not find national dex id for species", speciesName, "with internal id", species);
                 percentages[speciesName] = { probability: (counts[species] / total) * 100, id: id, name: speciesName };
             }
             result[mapKey][encounterType] = percentages;
