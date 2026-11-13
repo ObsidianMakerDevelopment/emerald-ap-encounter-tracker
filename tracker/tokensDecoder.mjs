@@ -25,10 +25,15 @@ export async function decodeTokenData(arrayBuffer, base_patch_checksum) {
     {
         version = Versions.v067; //archipelago 0.6.7 stable
     }
+    else if(base_patch_checksum == "605b89b67018abcea91e693a4dd25be3")
+    {
+        version = Versions.v068; //archipelago 0.6.8 stable
+    }
     else if(base_patch_checksum == "65a5632d20742e9f6a41f91b45048f27")
     {
         version = Versions.v300; //beta 3.0.0
     }
+
     setVersion(version);
     let rom_data = await getData(version);
     let numberOfToken = new DataView(arrayBuffer).getUint32(0, true);
@@ -136,6 +141,8 @@ export async function decodeTokenData(arrayBuffer, base_patch_checksum) {
     }
 
     const hasAddresses = minAddr <= maxAddr;
+
+    window.addressMap = addressMap;
 
     // Immediate decodables: single lookup per token
     for (let token of tokens) {
